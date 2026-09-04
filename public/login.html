@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Enterprise IT Helpdesk</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    
+    body {
+      /* Replace the URL below with your organization's background image */
+      background: linear-gradient(rgba(15, 23, 42, 0.75), rgba(15, 23, 42, 0.75)), 
+                  url('https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1920&q=80') center/cover no-repeat fixed;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .login-card {
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(8px);
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+      width: 100%;
+      max-width: 420px;
+      text-align: center;
+    }
+
+    /* Logo Container & Placeholder Styling */
+    .logo-container {
+      margin-bottom: 15px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* Standard Logo Image Class (use when you have an image URL/file) */
+    .brand-logo {
+      max-height: 50px;
+      width: auto;
+      object-fit: contain;
+    }
+
+    /* Placeholder CSS Logo Badge (active by default until replaced) */
+    .logo-placeholder {
+      width: 54px;
+      height: 54px;
+      background: #0056b3;
+      color: #ffffff;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.4rem;
+      letter-spacing: -1px;
+      box-shadow: 0 4px 10px rgba(0, 86, 179, 0.3);
+    }
+
+    h1 { color: #1e293b; font-size: 1.6rem; margin-bottom: 4px; font-weight: 700; }
+    p.subtitle { color: #64748b; font-size: 0.88rem; margin-bottom: 22px; }
+
+    .alert { padding: 10px 12px; border-radius: 6px; font-size: 0.85rem; margin-bottom: 18px; display: none; text-align: left; }
+    .alert-danger { background-color: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+    .alert-success { background-color: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+
+    .form-group { text-align: left; margin-bottom: 16px; }
+    label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.85rem; color: #334155; }
+    input { 
+      width: 100%; 
+      padding: 11px 13px; 
+      border: 1px solid #cbd5e1; 
+      border-radius: 6px; 
+      font-size: 0.95rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    input:focus { outline: none; border-color: #0056b3; box-shadow: 0 0 0 3px rgba(0, 86, 179, 0.15); }
+
+    .form-options {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      margin-bottom: 18px;
+      font-size: 0.83rem;
+    }
+    
+    .link-action {
+      color: #0056b3;
+      text-decoration: none;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .link-action:hover { text-decoration: underline; }
+
+    .btn { 
+      width: 100%; 
+      background: #0056b3; 
+      color: white; 
+      padding: 12px; 
+      border: none; 
+      border-radius: 6px; 
+      font-size: 0.95rem; 
+      font-weight: 600; 
+      cursor: pointer; 
+      transition: background 0.2s; 
+    }
+    .btn:hover { background: #004085; }
+
+    .credentials-hint { 
+      margin-top: 24px; 
+      padding-top: 16px; 
+      border-top: 1px solid #e2e8f0; 
+      font-size: 0.78rem; 
+      color: #64748b; 
+    }
+    code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: monospace; color: #0f172a; }
+
+    /* View View Visibility Controls */
+    .view-step { display: none; }
+    .view-step.active { display: block; }
+  </style>
+</head>
+<body>
+
+  <div class="login-card">
+    
+    <!-- BRAND LOGO PLACEHOLDER -->
+    <div class="logo-container">
+      <!-- DEFAULT PLACEHOLDER: Replace this entire div with your image tag when ready -->
+      <div class="logo-placeholder" title="Company Logo Placeholder">IT</div>
+      
+      <!-- EXAMPLE IMAGE IMPLEMENTATION (Uncomment and replace src):
+      <img src="/assets/company-logo.png" alt="Company Logo" class="brand-logo">
+      -->
+    </div>
+
+    <!-- VIEW 1: SIGN IN FORM -->
+    <div id="loginView" class="view-step active">
+      <h1>IT Helpdesk</h1>
+      <p class="subtitle">Sign in to access your dashboard</p>
+
+      <div id="loginAlert" class="alert alert-danger"></div>
+
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="email">Email Address</label>
+          <input type="email" id="email" required placeholder="name@company.com">
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" required placeholder="••••••••">
+        </div>
+
+        <div class="form-options">
+          <span class="link-action" onclick="switchView('forgotView')">Forgot password?</span>
+        </div>
+
+        <button type="submit" class="btn">Sign In</button>
+      </form>
+
+      <div class="credentials-hint">
+        Super Admin: <code>superadmin@helpdesk.local</code> | <code>SuperAdmin123!</code>
+      </div>
+    </div>
+
+    <!-- VIEW 2: FORGOT PASSWORD REQUEST -->
+    <div id="forgotView" class="view-step">
+      <h1>Reset Password</h1>
+      <p class="subtitle">Enter your email to receive a reset token</p>
+
+      <div id="forgotAlert" class="alert"></div>
+
+      <form id="forgotForm">
+        <div class="form-group">
+          <label for="resetEmail">Email Address</label>
+          <input type="email" id="resetEmail" required placeholder="name@company.com">
+        </div>
+
+        <button type="submit" class="btn">Send Reset Request</button>
+      </form>
+
+      <div style="margin-top: 18px;">
+        <span class="link-action" onclick="switchView('loginView')">← Back to Sign In</span>
+      </div>
+    </div>
+
+    <!-- VIEW 3: SET NEW PASSWORD -->
+    <div id="resetView" class="view-step">
+      <h1>New Password</h1>
+      <p class="subtitle">Enter your token and set a new password</p>
+
+      <div id="resetAlert" class="alert"></div>
+
+      <form id="resetForm">
+        <div class="form-group">
+          <label for="resetToken">Reset Token</label>
+          <input type="text" id="resetToken" required placeholder="Enter token from email">
+        </div>
+
+        <div class="form-group">
+          <label for="newPassword">New Password</label>
+          <input type="password" id="newPassword" required placeholder="Min. 8 characters">
+        </div>
+
+        <button type="submit" class="btn">Update Password</button>
+      </form>
+
+      <div style="margin-top: 18px;">
+        <span class="link-action" onclick="switchView('loginView')">← Back to Sign In</span>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Navigation Control between Sign In, Forgot Password, and Reset Password
+    function switchView(viewId) {
+      document.querySelectorAll('.view-step').forEach(el => el.classList.remove('active'));
+      document.getElementById(viewId).classList.add('active');
+      
+      // Clear alert messages during navigation
+      document.querySelectorAll('.alert').forEach(a => {
+        a.style.display = 'none';
+        a.className = 'alert';
+      });
+    }
+
+    // 1. Session check on page load
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user && data.user.role) {
+            redirectUserByRole(data.user.role);
+          }
+        }
+      } catch (err) {
+        // Guest user session; remain on login page
+      }
+    });
+
+    // 2. Sign In Form Handler
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const alertBox = document.getElementById('loginAlert');
+      alertBox.style.display = 'none';
+
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          redirectUserByRole(data.user.role);
+        } else {
+          showAlert(alertBox, data.error || 'Invalid email or password', 'danger');
+        }
+      } catch (err) {
+        showAlert(alertBox, 'Network connection error. Please try again.', 'danger');
+      }
+    });
+
+    // 3. Forgot Password Request Handler
+    document.getElementById('forgotForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const alertBox = document.getElementById('forgotAlert');
+      const email = document.getElementById('resetEmail').value.trim();
+
+      try {
+        const res = await fetch('/api/auth/forgot-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          showAlert(alertBox, data.message || 'Reset token generated. Proceeding to reset form...', 'success');
+          setTimeout(() => switchView('resetView'), 1800);
+        } else {
+          showAlert(alertBox, data.error || 'Unable to process reset request.', 'danger');
+        }
+      } catch (err) {
+        showAlert(alertBox, 'Network error. Please try again later.', 'danger');
+      }
+    });
+
+    // 4. Reset Password Submission Handler
+    document.getElementById('resetForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const alertBox = document.getElementById('resetAlert');
+      const token = document.getElementById('resetToken').value.trim();
+      const newPassword = document.getElementById('newPassword').value;
+
+      try {
+        const res = await fetch('/api/auth/reset-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, newPassword })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          showAlert(alertBox, 'Password updated successfully! Redirecting to login...', 'success');
+          setTimeout(() => switchView('loginView'), 2000);
+        } else {
+          showAlert(alertBox, data.error || 'Invalid or expired reset token.', 'danger');
+        }
+      } catch (err) {
+        showAlert(alertBox, 'Network error. Password update failed.', 'danger');
+      }
+    });
+
+    // Centralized Alert Helper
+    function showAlert(element, message, type) {
+      element.innerText = message;
+      element.className = `alert alert-${type}`;
+      element.style.display = 'block';
+    }
+
+    // Role-based Redirect Logic
+    function redirectUserByRole(role) {
+      switch (role) {
+        case 'super_admin':
+        case 'admin':
+          window.location.href = '/admin-users.html';
+          break;
+        case 'manager':
+          window.location.href = '/manager-dashboard.html';
+          break;
+        case 'resolver':
+          window.location.href = '/resolver-dashboard.html';
+          break;
+        case 'requester':
+        default:
+          window.location.href = '/requester-dashboard.html';
+          break;
+      }
+    }
+  </script>
+</body>
+</html>

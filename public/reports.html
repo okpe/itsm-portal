@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ITSM Executive Reports & Analytics</title>
+  
+  <!-- Google Fonts: Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Bootstrap 5 CSS & Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root { --nav-bg: #1a252f; }
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif !important; background-color: #f4f6f9; color: #333; }
+
+    /* Unified Top Navigation Bar */
+    nav.navbar { background-color: var(--nav-bg) !important; padding: 12px 25px; }
+    .navbar-brand { color: #007bff !important; font-weight: 700; font-size: 1.2rem; }
+    .nav-links { display: flex; gap: 10px; align-items: center; }
+    .nav-link-custom {
+      color: #cfd8dc;
+      background: transparent;
+      border: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      padding: 8px 14px;
+      border-radius: 4px;
+      text-decoration: none;
+      transition: background 0.2s, color 0.2s;
+    }
+    .nav-link-custom:hover { background: #2c3e50; color: #fff; }
+    .nav-link-custom.active { background: #007bff; color: #fff; }
+
+    /* Metric Cards & Chart Containers */
+    .metric-card { border-left: 4px solid #007bff; }
+    .chart-container { position: relative; height: 260px; width: 100%; }
+    
+    /* Navigation Pills Styling */
+    .nav-pills .nav-link { color: #495057; font-weight: 600; }
+    .nav-pills .nav-link.active { background-color: #007bff; color: #fff; }
+  </style>
+</head>
+<body class="d-flex flex-column min-vh-100">
+
+  <!-- Unified Navigation Bar -->
+  <nav class="navbar navbar-expand-lg navbar-dark shadow-sm">
+    <div class="container-fluid">
+      <div class="d-flex align-items-center gap-4">
+        <a class="navbar-brand m-0" href="asset-management.html">ITSM Portal</a>
+        <div class="nav-links">
+          <a href="admin-users.html" class="nav-link-custom">User Management</a>
+          <a href="resolver-dashboard.html" class="nav-link-custom">Helpdesk</a>
+          <a href="asset-management.html" class="nav-link-custom">Asset Management</a>
+          <a href="reports.html" class="nav-link-custom active">Reports</a>
+        </div>
+      </div>
+      <div class="d-flex align-items-center ms-auto">
+        <span class="navbar-text me-3 text-light" id="userInfo" aria-live="polite">Loading account...</span>
+        <button type="button" class="btn btn-danger btn-sm fw-bold" id="logoutBtn" onclick="handleLogout()">
+          <i class="bi bi-box-arrow-right me-1"></i>Logout
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content Area -->
+  <main class="container my-4 flex-grow-1">
+    
+    <!-- Title & Module Navigation Pills -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+      <div>
+        <h1 class="h3 mb-0 text-gray-800">System Reports & Analytics</h1>
+        <p class="text-muted small mb-0">Spool comprehensive analytics for support tickets and hardware inventory.</p>
+      </div>
+      
+      <!-- Toggle between Helpdesk and Asset Management Reports -->
+      <ul class="nav nav-pills bg-white p-1 rounded border shadow-sm" id="reportTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="helpdesk-tab" data-bs-toggle="pill" data-bs-target="#helpdesk-pane" type="button" role="tab">
+            <i class="bi bi-headset me-1"></i>Helpdesk Analytics
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="asset-tab" data-bs-toggle="pill" data-bs-target="#asset-pane" type="button" role="tab">
+            <i class="bi bi-laptop me-1"></i>Asset Management Reports
+          </button>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Tab Contents -->
+    <div class="tab-content" id="reportTabsContent">
+
+      <!-- ================= 1. HELPDESK ANALYTICS TAB ================= -->
+      <div class="tab-pane fade show active" id="helpdesk-pane" role="tabpanel" aria-labelledby="helpdesk-tab">
+        
+        <!-- Timeframe & Filters Card -->
+        <div class="card border-0 shadow-sm mb-4">
+          <div class="card-body p-3">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+              <h2 class="h6 mb-0 text-uppercase fw-bold text-secondary">Ticket Filters & Export</h2>
+              <div class="btn-group btn-group-sm" role="group">
+                <button type="button" class="btn btn-outline-secondary" onclick="applyTicketPreset(7, this)">Last 7 Days</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="applyTicketPreset(30, this)">Last 30 Days</button>
+                <button type="button" class="btn btn-outline-secondary active" onclick="resetTicketFilters(this)">All Time</button>
+              </div>
+            </div>
+
+            <form id="ticketFilterForm" class="row g-3 align-items-end" onsubmit="handleTicketFilterSubmit(event)">
+              <div class="col-12 col-sm-4 col-md-3">
+                <label for="startDate" class="form-label small fw-semibold text-muted">Start Date</label>
+                <input type="date" id="startDate" class="form-control form-control-sm">
+              </div>
+              <div class="col-12 col-sm-4 col-md-3">
+                <label for="endDate" class="form-label small fw-semibold text-muted">End Date</label>
+                <input type="date" id="endDate" class="form-control form-control-sm">
+              </div>
+              <div class="col-12 col-sm-4 col-md-6 d-flex gap-2">
+                <button type="submit" class="btn btn-primary btn-sm fw-semibold">
+                  <i class="bi bi-funnel me-1"></i>Apply Filters
+                </button>
+                <button type="button" onclick="exportTicketsCSV()" class="btn btn-success btn-sm fw-semibold ms-auto">
+                  <i class="bi bi-download me-1"></i>Export Tickets CSV
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Ticket Metrics Summary -->
+        <div class="row g-3 mb-4">
+          <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm p-3 metric-card">
+              <div class="text-muted small fw-bold text-uppercase">Total Tickets</div>
+              <div class="h2 fw-bold text-primary mb-0 mt-1" id="valTotal">0</div>
+            </div>
+          </div>
+          <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm p-3 metric-card" style="border-left-color: #d97706;">
+              <div class="text-muted small fw-bold text-uppercase">Active Tickets</div>
+              <div class="h2 fw-bold mb-0 mt-1" style="color: #d97706;" id="valActive">0</div>
+            </div>
+          </div>
+          <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm p-3 metric-card" style="border-left-color: #198754;">
+              <div class="text-muted small fw-bold text-uppercase">SLA Compliance</div>
+              <div class="h2 fw-bold text-success mb-0 mt-1" id="valSlaRate">0%</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ticket Visual Charts -->
+        <div class="row g-3 mb-4">
+          <div class="col-12 col-lg-6">
+            <div class="card border-0 shadow-sm p-3">
+              <h3 class="h6 fw-bold mb-3">Ticket Status Distribution</h3>
+              <div class="chart-container"><canvas id="statusChart"></canvas></div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-6">
+            <div class="card border-0 shadow-sm p-3">
+              <h3 class="h6 fw-bold mb-3">SLA Compliance Performance</h3>
+              <div class="chart-container"><canvas id="slaChart"></canvas></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ticket Data Table -->
+        <div class="card border-0 shadow-sm">
+          <div class="card-body p-3">
+            <h3 class="h6 fw-bold mb-3">Ticket Performance Log</h3>
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>Ticket Ref</th>
+                    <th>Date</th>
+                    <th>Requester</th>
+                    <th>Category</th>
+                    <th>Subject</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="reportTableBody">
+                  <tr><td colspan="6" class="text-center py-4 text-muted">Loading ticket analytics...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ================= 2. ASSET MANAGEMENT REPORTS TAB ================= -->
+      <div class="tab-pane fade" id="asset-pane" role="tabpanel" aria-labelledby="asset-tab">
+        
+        <!-- Asset Filter & Export Toolbar -->
+        <div class="card border-0 shadow-sm mb-4">
+          <div class="card-body p-3">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+              <div class="d-flex align-items-center gap-2 flex-grow-1">
+                <label for="assetStatusFilter" class="form-label small fw-semibold text-muted mb-0 me-2">Status:</label>
+                <select id="assetStatusFilter" class="form-select form-select-sm" style="max-width: 200px;" onchange="loadAssetReportData()">
+                  <option value="">All Statuses</option>
+                  <option value="Assigned">Assigned</option>
+                  <option value="In Stock">In Stock</option>
+                  <option value="Under Repair">Under Repair</option>
+                  <option value="Retired">Retired</option>
+                  <option value="Refreshed">Refreshed</option>
+                </select>
+              </div>
+              <button type="button" onclick="exportAssetsCSV()" class="btn btn-success btn-sm fw-semibold">
+                <i class="bi bi-download me-1"></i>Export Assets CSV
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Asset Overview Metrics -->
+        <div class="row g-3 mb-4">
+          <div class="col-12 col-md-3">
+            <div class="card border-0 shadow-sm p-3 metric-card" style="border-left-color: #0d6efd;">
+              <div class="text-muted small fw-bold text-uppercase">Total Hardware Assets</div>
+              <div class="h2 fw-bold text-primary mb-0 mt-1" id="assetValTotal">0</div>
+            </div>
+          </div>
+          <div class="col-12 col-md-3">
+            <div class="card border-0 shadow-sm p-3 metric-card" style="border-left-color: #198754;">
+              <div class="text-muted small fw-bold text-uppercase">Assigned (In Use)</div>
+              <div class="h2 fw-bold text-success mb-0 mt-1" id="assetValInUse">0</div>
+            </div>
+          </div>
+          <div class="col-12 col-md-3">
+            <div class="card border-0 shadow-sm p-3 metric-card" style="border-left-color: #0dcaf0;">
+              <div class="text-muted small fw-bold text-uppercase">Available / In Stock</div>
+              <div class="h2 fw-bold text-info mb-0 mt-1" id="assetValAvailable">0</div>
+            </div>
+          </div>
+          <div class="col-12 col-md-3">
+            <div class="card border-0 shadow-sm p-3 metric-card" style="border-left-color: #dc3545;">
+              <div class="text-muted small fw-bold text-uppercase">Under Repair</div>
+              <div class="h2 fw-bold text-danger mb-0 mt-1" id="assetValRepair">0</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Asset Distribution Chart -->
+        <div class="row g-3 mb-4">
+          <div class="col-12 col-lg-6">
+            <div class="card border-0 shadow-sm p-3">
+              <h3 class="h6 fw-bold mb-3">Asset Status Breakdown</h3>
+              <div class="chart-container"><canvas id="assetStatusChart"></canvas></div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-6">
+            <div class="card border-0 shadow-sm p-3">
+              <h3 class="h6 fw-bold mb-3">Asset Categories</h3>
+              <div class="chart-container"><canvas id="assetCategoryChart"></canvas></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hardware Inventory Table -->
+        <div class="card border-0 shadow-sm">
+          <div class="card-body p-3">
+            <h3 class="h6 fw-bold mb-3">Asset Inventory Report</h3>
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>Asset Tag</th>
+                    <th>Category</th>
+                    <th>Model</th>
+                    <th>Serial Number</th>
+                    <th>Status</th>
+                    <th>Assigned To</th>
+                  </tr>
+                </thead>
+                <tbody id="assetReportTableBody">
+                  <tr><td colspan="6" class="text-center py-4 text-muted">Loading asset inventory...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer mt-auto py-3 bg-white border-top text-center text-muted small">
+    <div class="container">&copy; ITSM Operations. All rights reserved.</div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/auth-guard.js"></script>
+
+  <script>
+    let statusChartInstance = null;
+    let slaChartInstance = null;
+    let assetStatusChartInstance = null;
+    let assetCategoryChartInstance = null;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      // 1. Authenticate Access
+      const user = await protectPage(['admin', 'super_admin', 'superadmin', 'manager']);
+      if (!user) return;
+
+      // 2. Set User Banner
+      const userInfoEl = document.getElementById('userInfo');
+      if (userInfoEl && user.name) {
+        userInfoEl.innerText = `${user.name} (${String(user.role || '').toUpperCase()})`;
+      }
+
+      // 3. Load initial datasets
+      await loadTicketReportData();
+      await loadAssetReportData();
+    });
+
+    // ================= HELPDESK DATA FUNCTIONS =================
+    async function loadTicketReportData(queryParams = '') {
+      try {
+        const [reportRes, ticketsRes] = await Promise.all([
+          authFetch(`/api/admin/reports${queryParams}`),
+          authFetch(`/api/admin/tickets`)
+        ]);
+
+        if (!reportRes || !reportRes.ok) return;
+
+        const data = await reportRes.json();
+        const tickets = ticketsRes && ticketsRes.ok ? await ticketsRes.json() : [];
+        
+        document.getElementById('valTotal').innerText = data.summary?.total || 0;
+        document.getElementById('valActive').innerText = (data.summary?.open || 0) + (data.summary?.inProgress || 0);
+        document.getElementById('valSlaRate').innerText = `${data.sla?.complianceRate || '100%'} `;
+
+        renderTicketCharts(data);
+        renderTicketTable(tickets);
+      } catch (err) {
+        console.error('Error loading ticket analytics:', err);
+      }
+    }
+
+    function renderTicketCharts(data) {
+      const summary = data.summary || {};
+      const sla = data.sla || {};
+
+      const ctxStatus = document.getElementById('statusChart').getContext('2d');
+      if (statusChartInstance) statusChartInstance.destroy();
+      statusChartInstance = new Chart(ctxStatus, {
+        type: 'doughnut',
+        data: {
+          labels: ['Open', 'In Progress', 'Resolved', 'Closed', 'Rejected'],
+          datasets: [{ 
+            data: [
+              summary.open || 0, 
+              summary.inProgress || 0, 
+              summary.resolved || 0,
+              summary.closed || 0,
+              summary.rejected || 0
+            ], 
+            backgroundColor: ['#ffc107', '#0d6efd', '#198754', '#6c757d', '#dc3545'] 
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+
+      const ctxSla = document.getElementById('slaChart').getContext('2d');
+      if (slaChartInstance) slaChartInstance.destroy();
+      slaChartInstance = new Chart(ctxSla, {
+        type: 'pie',
+        data: {
+          labels: ['SLA Met', 'SLA Breached'],
+          datasets: [{ data: [sla.met || 0, sla.breached || 0], backgroundColor: ['#198754', '#dc3545'] }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+    }
+
+    function renderTicketTable(tickets) {
+      const tbody = document.getElementById('reportTableBody');
+      if (!tickets || tickets.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">No ticket metrics available.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = tickets.map(t => `
+        <tr>
+          <td class="fw-bold">${t.ticket_number || t.id}</td>
+          <td>${t.created_at ? new Date(t.created_at).toLocaleDateString() : 'N/A'}</td>
+          <td>${t.requester_name || 'N/A'}</td>
+          <td>${t.category || 'General'}</td>
+          <td>${t.title || ''}</td>
+          <td><span class="badge ${t.status === 'Resolved' || t.status === 'Closed' ? 'bg-success' : 'bg-warning text-dark'}">${t.status}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    // ================= ASSET MANAGEMENT DATA FUNCTIONS =================
+    async function loadAssetReportData() {
+      try {
+        const selectedStatus = document.getElementById('assetStatusFilter').value;
+        
+        const [assetsRes, summaryRes] = await Promise.all([
+          authFetch(`/api/assets${selectedStatus ? `?status=${encodeURIComponent(selectedStatus)}` : ''}`),
+          authFetch('/api/assets/reports')
+        ]);
+
+        if (!assetsRes || !assetsRes.ok) return;
+
+        const assets = await assetsRes.json();
+        
+        if (summaryRes && summaryRes.ok) {
+          const summaryData = await summaryRes.json();
+          const s = summaryData.summary || {};
+          
+          document.getElementById('assetValTotal').innerText = s.total_assets || 0;
+          document.getElementById('assetValInUse').innerText = s.assigned_count || 0;
+          document.getElementById('assetValAvailable').innerText = s.in_stock_count || 0;
+          document.getElementById('assetValRepair').innerText = s.in_repair_count || 0;
+        } else {
+          document.getElementById('assetValTotal').innerText = assets.length;
+          document.getElementById('assetValInUse').innerText = assets.filter(a => a.status === 'Assigned').length;
+          document.getElementById('assetValAvailable').innerText = assets.filter(a => a.status === 'In Stock').length;
+          document.getElementById('assetValRepair').innerText = assets.filter(a => a.status === 'Under Repair').length;
+        }
+
+        renderAssetCharts(assets);
+        renderAssetTable(assets);
+      } catch (err) {
+        console.error('Error loading asset reports:', err);
+      }
+    }
+
+    function renderAssetCharts(assets) {
+      // 1. Status Breakdown
+      const statusCounts = { 'Assigned': 0, 'In Stock': 0, 'Under Repair': 0, 'Retired': 0, 'Refreshed': 0 };
+      assets.forEach(a => { 
+        if (statusCounts[a.status] !== undefined) {
+          statusCounts[a.status]++; 
+        } else {
+          statusCounts[a.status] = 1;
+        }
+      });
+
+      const ctxAssetStatus = document.getElementById('assetStatusChart').getContext('2d');
+      if (assetStatusChartInstance) assetStatusChartInstance.destroy();
+      assetStatusChartInstance = new Chart(ctxAssetStatus, {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(statusCounts),
+          datasets: [{ data: Object.values(statusCounts), backgroundColor: ['#198754', '#0dcaf0', '#dc3545', '#6c757d', '#0d6efd'] }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+
+      // 2. Category Breakdown
+      const categoryMap = {};
+      assets.forEach(a => {
+        const cat = a.category || 'Uncategorized';
+        categoryMap[cat] = (categoryMap[cat] || 0) + 1;
+      });
+
+      const ctxAssetCategory = document.getElementById('assetCategoryChart').getContext('2d');
+      if (assetCategoryChartInstance) assetCategoryChartInstance.destroy();
+      assetCategoryChartInstance = new Chart(ctxAssetCategory, {
+        type: 'bar',
+        data: {
+          labels: Object.keys(categoryMap),
+          datasets: [{ label: 'Asset Count', data: Object.values(categoryMap), backgroundColor: '#0d6efd' }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+      });
+    }
+
+    function renderAssetTable(assets) {
+      const tbody = document.getElementById('assetReportTableBody');
+      if (!assets || assets.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">No asset records found.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = assets.map(a => `
+        <tr>
+          <td class="fw-bold text-primary">${a.asset_tag || a.id}</td>
+          <td>${a.category || 'N/A'}</td>
+          <td>${a.model || 'N/A'}</td>
+          <td><code>${a.serial_number || 'N/A'}</code></td>
+          <td><span class="badge ${a.status === 'Assigned' ? 'bg-success' : a.status === 'In Stock' ? 'bg-info text-dark' : 'bg-warning text-dark'}">${a.status}</span></td>
+          <td>${a.assigned_user_name || 'Unassigned'}</td>
+        </tr>
+      `).join('');
+    }
+
+    // ================= FILTERS & EXPORT HANDLERS =================
+    function handleTicketFilterSubmit(e) {
+      e.preventDefault();
+      const start = document.getElementById('startDate').value;
+      const end = document.getElementById('endDate').value;
+      const query = (start && end) ? `?startDate=${encodeURIComponent(start)}&endDate=${encodeURIComponent(end)}` : '';
+      loadTicketReportData(query);
+    }
+
+    function applyTicketPreset(days, btn) {
+      document.querySelectorAll('#ticketFilterForm .btn-group .btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(endDate.getDate() - days);
+
+      const startStr = startDate.toISOString().split('T')[0];
+      const endStr = endDate.toISOString().split('T')[0];
+
+      document.getElementById('startDate').value = startStr;
+      document.getElementById('endDate').value = endStr;
+      loadTicketReportData(`?startDate=${startStr}&endDate=${endStr}`);
+    }
+
+    function resetTicketFilters(btn) {
+      document.querySelectorAll('#ticketFilterForm .btn-group .btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('startDate').value = '';
+      document.getElementById('endDate').value = '';
+      loadTicketReportData();
+    }
+
+    function exportTicketsCSV() {
+      const start = document.getElementById('startDate').value;
+      const end = document.getElementById('endDate').value;
+      let url = '/api/admin/reports/export';
+      if (start && end) url += `?startDate=${encodeURIComponent(start)}&endDate=${encodeURIComponent(end)}`;
+      window.location.href = url;
+    }
+
+    function exportAssetsCSV() {
+      const status = document.getElementById('assetStatusFilter').value;
+      let url = '/api/assets/export';
+      if (status) url += `?status=${encodeURIComponent(status)}`;
+      window.location.href = url;
+    }
+
+    async function handleLogout() {
+      try {
+        await authFetch('/api/auth/logout', { method: 'POST' });
+      } finally {
+        localStorage.removeItem('token');
+        localStorage.removeItem('jwt');
+        window.location.href = '/login.html';
+      }
+    }
+  </script>
+</body>
+</html>

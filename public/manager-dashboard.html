@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Line Manager Approval Portal</title>
+  <style>
+    :root {
+      --primary: #0056b3;
+      --primary-hover: #004085;
+      --bg-color: #f4f6f9;
+      --card-bg: #ffffff;
+      --text-color: #212529;
+      --text-muted: #6c757d;
+      --border-color: #e9ecef;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: var(--bg-color); color: var(--text-color); }
+
+    /* Navigation Bar */
+    header {
+      background-color: #1a252f;
+      color: #ffffff;
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .brand { font-size: 1.25rem; font-weight: 700; color: #3b82f6; }
+    .nav-links { display: flex; align-items: center; gap: 15px; font-size: 0.9rem; }
+    .nav-links a { color: #ffffff; text-decoration: none; font-weight: 500; }
+    .btn-create {
+      background: var(--primary);
+      color: #ffffff;
+      padding: 7px 16px;
+      border-radius: 4px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+    .btn-create:hover { background: var(--primary-hover); }
+    .btn-logout {
+      background: #dc3545;
+      color: #ffffff;
+      padding: 7px 14px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+    .btn-logout:hover { background: #bd2130; }
+
+    /* Layout Container */
+    .container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
+
+    /* Summary KPI Cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      padding: 18px 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.04);
+      border-left: 4px solid var(--primary);
+    }
+    .stat-card.pending { border-left-color: #ffc107; }
+    .stat-card.approved { border-left-color: #28a745; }
+    .stat-card.rejected { border-left-color: #dc3545; }
+    .stat-card.total { border-left-color: #17a2b8; }
+
+    .stat-label { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); }
+    .stat-value { font-size: 1.6rem; font-weight: 700; margin-top: 5px; }
+
+    /* Main Table Container */
+    .card { background: var(--card-bg); padding: 25px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
+    h2 { font-size: 1.25rem; color: #1a252f; }
+
+    /* Toolbar & Search Controls */
+    .table-toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; width: 100%; margin-bottom: 15px; }
+    .search-box { flex: 1; min-width: 240px; }
+    .filter-box { width: 180px; }
+    .form-control {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      outline: none;
+    }
+    .form-control:focus { border-color: var(--primary); }
+
+    /* Data Table */
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; vertical-align: top; }
+    th { background-color: #f8f9fa; color: #495057; font-weight: 600; user-select: none; }
+    th.sortable { cursor: pointer; }
+    th.sortable:hover { background-color: #e9ecef; }
+    tr:hover { background-color: #f8f9fa; }
+
+    /* Status Badges */
+    .badge { padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; display: inline-block; }
+    .badge-open { background: #fff3cd; color: #856404; }
+    .badge-approved { background: #d4edda; color: #155724; }
+    .badge-rejected { background: #f8d7da; color: #721c24; }
+    .badge-closed { background: #e2e3e5; color: #383d41; }
+    .ticket-ref { font-family: monospace; font-size: 0.95rem; font-weight: 700; color: var(--primary); }
+
+    /* Action Buttons */
+    .btn-action { padding: 6px 12px; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 0.8rem; margin-right: 5px; transition: opacity 0.2s; }
+    .btn-action:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-approve { background: #28a745; color: #ffffff; }
+    .btn-approve:hover:not(:disabled) { background: #218838; }
+    .btn-reject { background: #dc3545; color: #ffffff; }
+    .btn-reject:hover:not(:disabled) { background: #c82333; }
+
+    /* Pagination Bar */
+    .pagination-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--border-color); font-size: 0.85rem; color: var(--text-muted); }
+    .btn-page { padding: 5px 12px; border: 1px solid #ced4da; background: #fff; border-radius: 4px; cursor: pointer; font-weight: 600; }
+    .btn-page:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Rejection Reason Modal Overlay */
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000; }
+    .modal { background: #fff; width: 100%; max-width: 450px; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">Line Manager Portal</div>
+    <div class="nav-links">
+      <span id="userInfo">Loading account...</span>
+      <a href="/create-ticket.html" class="btn-create">Submit Ticket</a>
+      <button class="btn-logout" onclick="handleLogout()">Logout</button>
+    </div>
+  </header>
+
+  <div class="container">
+
+    <!-- Summary KPI Cards -->
+    <div class="stats-grid">
+      <div class="stat-card pending">
+        <div class="stat-label">Pending Approval</div>
+        <div class="stat-value" id="countPending">0</div>
+      </div>
+      <div class="stat-card approved">
+        <div class="stat-label">Approved</div>
+        <div class="stat-value" id="countApproved">0</div>
+      </div>
+      <div class="stat-card rejected">
+        <div class="stat-label">Rejected</div>
+        <div class="stat-value" id="countRejected">0</div>
+      </div>
+      <div class="stat-card total">
+        <div class="stat-label">Total Requests</div>
+        <div class="stat-value" id="countTotal">0</div>
+      </div>
+    </div>
+
+    <!-- Main Table Card -->
+    <div class="card">
+      <div class="header-row">
+        <h2>Tickets Requiring Your Approval</h2>
+      </div>
+
+      <!-- Controls & Search Toolbar -->
+      <div class="table-toolbar">
+        <div class="search-box">
+          <input type="text" id="searchInput" class="form-control" placeholder="Search by requester, ticket ref, or title..." oninput="handleFilterChange()">
+        </div>
+        <div class="filter-box">
+          <select id="categoryFilter" class="form-control" onchange="handleFilterChange()">
+            <option value="">All Categories</option>
+            <option value="Hardware">Hardware</option>
+            <option value="Software">Software</option>
+            <option value="Access">Access & Credentials</option>
+            <option value="General Support">General Support</option>
+          </select>
+        </div>
+        <div class="filter-box">
+          <select id="statusFilter" class="form-control" onchange="handleFilterChange()">
+            <option value="">All Statuses</option>
+            <option value="Open">Pending (Open)</option>
+            <option value="Approved">Approved</option>
+            <option value="Rejected">Rejected</option>
+          </select>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th class="sortable" onclick="sortTable('ref')">Ticket Ref ↕</th>
+            <th>Type</th>
+            <th class="sortable" onclick="sortTable('requester')">Requester ↕</th>
+            <th>Category</th>
+            <th class="sortable" onclick="sortTable('title')">Subject / Description ↕</th>
+            <th class="sortable" onclick="sortTable('status')">Status ↕</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="approvalTableBody">
+          <tr><td colspan="7" style="text-align:center;">Loading approvals...</td></tr>
+        </tbody>
+      </table>
+
+      <!-- Pagination -->
+      <div class="pagination-bar">
+        <div id="paginationSummary">Showing 0 of 0 tickets</div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button id="prevBtn" class="btn-page" onclick="changePage(-1)" disabled>Previous</button>
+          <span id="pageIndicator" style="font-weight: bold;">Page 1</span>
+          <button id="nextBtn" class="btn-page" onclick="changePage(1)" disabled>Next</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rejection Modal -->
+  <div id="rejectModal" class="modal-overlay">
+    <div class="modal">
+      <h3 style="margin-bottom: 12px; color: #1a252f;">Reject Ticket Request</h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">
+        Please provide a reason for rejecting this support request so the user stays informed.
+      </p>
+      <textarea id="rejectReasonInput" class="form-control" rows="4" placeholder="Explain rejection reason..."></textarea>
+      <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;">
+        <button class="btn-page" onclick="closeRejectModal()">Cancel</button>
+        <button class="btn-action btn-reject" id="submitRejectBtn" onclick="submitRejection()">Confirm Rejection</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Relative Script Path -->
+  <script src="auth-guard.js"></script>
+  <script>
+    let currentUser = null;
+    let rawTicketsList = [];
+    let filteredTicketsList = [];
+    let selectedTicketForReject = null;
+
+    // Pagination & Sort State
+    let currentPage = 1;
+    const pageSize = 7;
+    let sortColumn = 'id';
+    let sortAscending = false;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Safe execution check for auth-guard function
+      if (typeof protectPage === 'function') {
+        currentUser = await protectPage(['manager', 'admin', 'super_admin']);
+      } else {
+        console.warn('protectPage is not defined. Falling back to direct API session check.');
+        currentUser = await loadFallbackUserSession();
+      }
+
+      if (currentUser) {
+        document.getElementById('userInfo').innerText = `${currentUser.name} (${currentUser.role.replace('_', ' ').toUpperCase()})`;
+      } else {
+        document.getElementById('userInfo').innerText = 'Unauthenticated User';
+      }
+
+      await loadApprovals();
+    });
+
+    async function loadFallbackUserSession() {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (!res.ok) throw new Error('Not logged in');
+        return await res.json();
+      } catch (err) {
+        window.location.href = '/login.html';
+        return null;
+      }
+    }
+
+    async function loadApprovals() {
+      const tbody = document.getElementById('approvalTableBody');
+      try {
+        const res = await fetch('/api/manager/tickets');
+        if (!res.ok) {
+          if (res.status === 401 || res.status === 403) {
+            window.location.href = '/login.html';
+            return;
+          }
+          throw new Error(`Server error (${res.status})`);
+        }
+
+        rawTicketsList = await res.json();
+        updateSummaryMetrics();
+        handleFilterChange();
+
+      } catch (err) {
+        console.error('Failed to load manager approvals:', err);
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#dc3545; font-weight:600;">Unable to load approvals: ${escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    function updateSummaryMetrics() {
+      let pending = 0, approved = 0, rejected = 0;
+      rawTicketsList.forEach(t => {
+        const status = (t.status || '').toLowerCase();
+        if (status === 'open') pending++;
+        else if (status === 'approved') approved++;
+        else if (status === 'rejected') rejected++;
+      });
+
+      document.getElementById('countPending').textContent = pending;
+      document.getElementById('countApproved').textContent = approved;
+      document.getElementById('countRejected').textContent = rejected;
+      document.getElementById('countTotal').textContent = rawTicketsList.length;
+    }
+
+    function handleFilterChange() {
+      const query = document.getElementById('searchInput').value.toLowerCase().trim();
+      const categoryFilter = document.getElementById('categoryFilter').value;
+      const statusFilter = document.getElementById('statusFilter').value;
+
+      filteredTicketsList = rawTicketsList.filter(t => {
+        const refNumber = (t.ticket_number || `#${t.id}`).toLowerCase();
+        const requester = (t.requester_name || '').toLowerCase();
+        const email = (t.requester_email || '').toLowerCase();
+        const title = (t.title || '').toLowerCase();
+        const desc = (t.description || '').toLowerCase();
+
+        const matchesQuery = refNumber.includes(query) || requester.includes(query) || email.includes(query) || title.includes(query) || desc.includes(query);
+        const matchesCategory = categoryFilter === '' || t.category === categoryFilter;
+        const matchesStatus = statusFilter === '' || t.status === statusFilter;
+
+        return matchesQuery && matchesCategory && matchesStatus;
+      });
+
+      currentPage = 1;
+      renderTable();
+    }
+
+    function sortTable(columnKey) {
+      if (sortColumn === columnKey) {
+        sortAscending = !sortAscending;
+      } else {
+        sortColumn = columnKey;
+        sortAscending = true;
+      }
+
+      filteredTicketsList.sort((a, b) => {
+        let valA = a[columnKey] || '';
+        let valB = b[columnKey] || '';
+
+        if (columnKey === 'ref') {
+          valA = a.ticket_number || a.id;
+          valB = b.ticket_number || b.id;
+        } else if (columnKey === 'requester') {
+          valA = a.requester_name || '';
+          valB = b.requester_name || '';
+        }
+
+        if (valA < valB) return sortAscending ? -1 : 1;
+        if (valA > valB) return sortAscending ? 1 : -1;
+        return 0;
+      });
+
+      renderTable();
+    }
+
+    function changePage(direction) {
+      currentPage += direction;
+      renderTable();
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('approvalTableBody');
+      const totalTickets = filteredTicketsList.length;
+
+      if (totalTickets === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">No tickets found matching criteria.</td></tr>`;
+        document.getElementById('paginationSummary').textContent = 'Showing 0 of 0 tickets';
+        document.getElementById('prevBtn').disabled = true;
+        document.getElementById('nextBtn').disabled = true;
+        document.getElementById('pageIndicator').textContent = 'Page 1';
+        return;
+      }
+
+      const totalPages = Math.ceil(totalTickets / pageSize);
+      if (currentPage > totalPages) currentPage = totalPages;
+
+      const startIndex = (currentPage - 1) * pageSize;
+      const endIndex = Math.min(startIndex + pageSize, totalTickets);
+      const pageData = filteredTicketsList.slice(startIndex, endIndex);
+
+      tbody.innerHTML = pageData.map(t => {
+        const refNumber = t.ticket_number ? t.ticket_number : `#${t.id}`;
+        const statusClass = (t.status || 'open').toLowerCase();
+
+        return `
+          <tr>
+            <td><span class="ticket-ref">${escapeHtml(refNumber)}</span></td>
+            <td>${escapeHtml(t.ticket_type || 'Incident')}</td>
+            <td>
+              <strong>${escapeHtml(t.requester_name || 'N/A')}</strong><br>
+              <small style="color: var(--text-muted);">${escapeHtml(t.requester_email || '')}</small>
+            </td>
+            <td>${escapeHtml(t.category || 'General')}</td>
+            <td>
+              <strong>${escapeHtml(t.title)}</strong>
+              <div style="font-size:0.85rem; color:#555; margin-top:4px;">${escapeHtml(t.description)}</div>
+            </td>
+            <td><span class="badge badge-${statusClass}">${escapeHtml(t.status)}</span></td>
+            <td>
+              ${t.status === 'Open' ? `
+                <button id="approveBtn_${t.id}" class="btn-action btn-approve" onclick="approveTicket(${t.id})">Approve</button>
+                <button class="btn-action btn-reject" onclick="openRejectModal(${t.id})">Reject</button>
+              ` : `<span style="color: var(--text-muted); font-size: 0.85rem; font-weight: 600;">Completed</span>`}
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      // Pagination Controls Update
+      document.getElementById('paginationSummary').textContent = `Showing ${startIndex + 1}–${endIndex} of ${totalTickets} tickets`;
+      document.getElementById('pageIndicator').textContent = `Page ${currentPage} of ${totalPages}`;
+      document.getElementById('prevBtn').disabled = currentPage === 1;
+      document.getElementById('nextBtn').disabled = currentPage === totalPages;
+    }
+
+    async function approveTicket(id) {
+      if (!confirm(`Are you sure you want to approve ticket #${id}?`)) return;
+
+      const btn = document.getElementById(`approveBtn_${id}`);
+      if (btn) { btn.disabled = true; btn.textContent = 'Processing...'; }
+
+      try {
+        const res = await fetch(`/api/manager/tickets/${id}/action`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'Approved' })
+        });
+
+        if (res.ok) {
+          await loadApprovals();
+        } else {
+          const data = await res.json();
+          alert(`Error: ${data.error || 'Failed to approve request'}`);
+        }
+      } catch (err) {
+        alert('Network error processing ticket approval.');
+      }
+    }
+
+    function openRejectModal(id) {
+      selectedTicketForReject = id;
+      document.getElementById('rejectReasonInput').value = '';
+      document.getElementById('rejectModal').style.display = 'flex';
+    }
+
+    function closeRejectModal() {
+      selectedTicketForReject = null;
+      document.getElementById('rejectModal').style.display = 'none';
+    }
+
+    async function submitRejection() {
+      if (!selectedTicketForReject) return;
+
+      const reason = document.getElementById('rejectReasonInput').value.trim();
+      const submitBtn = document.getElementById('submitRejectBtn');
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Processing...';
+
+      try {
+        const res = await fetch(`/api/manager/tickets/${selectedTicketForReject}/action`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'Rejected', reason })
+        });
+
+        if (res.ok) {
+          closeRejectModal();
+          await loadApprovals();
+        } else {
+          const data = await res.json();
+          alert(`Error: ${data.error || 'Failed to reject ticket'}`);
+        }
+      } catch (err) {
+        alert('Network error processing rejection.');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Confirm Rejection';
+      }
+    }
+
+    async function handleLogout() {
+      try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+      } catch (err) {
+        console.warn('Logout API failed, redirecting...');
+      } finally {
+        window.location.href = '/login.html';
+      }
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+  </script>
+</body>
+</html>

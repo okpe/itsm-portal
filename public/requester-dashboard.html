@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Support Tickets - IT Helpdesk</title>
+  <style>
+    :root {
+      --primary: #0056b3;
+      --primary-hover: #004085;
+      --bg-color: #f4f6f9;
+      --card-bg: #ffffff;
+      --text-color: #212529;
+      --text-muted: #6c757d;
+      --border-color: #e9ecef;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: var(--bg-color); color: var(--text-color); }
+
+    /* Top Navigation Bar */
+    header {
+      background-color: #1a252f;
+      color: #ffffff;
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .brand { font-size: 1.25rem; font-weight: 700; color: #3b82f6; }
+    .nav-links { display: flex; align-items: center; gap: 15px; font-size: 0.9rem; }
+    .btn-create {
+      background: var(--primary);
+      color: #ffffff;
+      padding: 7px 16px;
+      border-radius: 4px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+    .btn-create:hover { background: var(--primary-hover); }
+    .btn-logout {
+      background: #dc3545;
+      color: #ffffff;
+      padding: 7px 14px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+    .btn-logout:hover { background: #bd2130; }
+
+    /* Layout Container */
+    .container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
+    
+    /* Executive Summary Cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      padding: 18px 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.04);
+      border-left: 4px solid var(--primary);
+    }
+    .stat-card.open { border-left-color: #ffc107; }
+    .stat-card.in-progress { border-left-color: #17a2b8; }
+    .stat-card.resolved { border-left-color: #28a745; }
+    .stat-card.closed { border-left-color: #6c757d; }
+    
+    .stat-label { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); }
+    .stat-value { font-size: 1.6rem; font-weight: 700; margin-top: 5px; }
+
+    /* Main Table Container */
+    .card { background: var(--card-bg); padding: 25px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
+    h2 { font-size: 1.25rem; color: #1a252f; }
+
+    /* Toolbar & Search Controls */
+    .table-toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; width: 100%; margin-bottom: 15px; }
+    .search-box { flex: 1; min-width: 240px; }
+    .filter-box { width: 180px; }
+    .form-control {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      outline: none;
+    }
+    .form-control:focus { border-color: var(--primary); }
+
+    /* Data Table */
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; vertical-align: top; }
+    th { background-color: #f8f9fa; color: #495057; font-weight: 600; user-select: none; }
+    th.sortable { cursor: pointer; }
+    th.sortable:hover { background-color: #e9ecef; }
+    tr:hover { background-color: #f8f9fa; }
+
+    /* Status Badges */
+    .badge { padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; display: inline-block; }
+    .badge-open { background: #fff3cd; color: #856404; }
+    .badge-approved { background: #cce5ff; color: #004085; }
+    .badge-in-progress, .badge-in_progress { background: #d1ecf1; color: #0c5460; }
+    .badge-resolved { background: #d4edda; color: #155724; }
+    .badge-closed { background: #e2e3e5; color: #383d41; }
+    .badge-rejected { background: #f8d7da; color: #721c24; }
+    .ticket-ref { font-family: monospace; font-size: 0.95rem; font-weight: 700; color: var(--primary); }
+
+    /* Action Buttons */
+    .btn-action { padding: 5px 12px; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 0.8rem; margin-right: 5px; transition: opacity 0.2s; }
+    .btn-action:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-confirm { background: #28a745; color: white; }
+    .btn-confirm:hover:not(:disabled) { background: #218838; }
+    .btn-reopen { background: #ffc107; color: #212529; }
+    .btn-reopen:hover:not(:disabled) { background: #e0a800; }
+    
+    /* SLA Indicators */
+    .sla-met { color: #28a745; font-weight: 700; font-size: 0.85rem; }
+    .sla-breached { color: #dc3545; font-weight: 700; font-size: 0.85rem; }
+    .sla-pending { color: #fd7e14; font-weight: 600; font-size: 0.85rem; }
+
+    .resolution-box { background: #f8f9fa; border-left: 3px solid #28a745; padding: 8px 12px; font-size: 0.85rem; margin-top: 8px; border-radius: 2px; }
+
+    /* Pagination Bar */
+    .pagination-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--border-color); font-size: 0.85rem; color: var(--text-muted); }
+    .btn-page { padding: 5px 12px; border: 1px solid #ced4da; background: #fff; border-radius: 4px; cursor: pointer; font-weight: 600; }
+    .btn-page:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Modal Overlay */
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000; }
+    .modal { background: #fff; width: 100%; max-width: 450px; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">IT Helpdesk Portal</div>
+    <div class="nav-links">
+      <span id="userInfo">Loading account...</span>
+      <a href="/create-ticket.html" class="btn-create">+ New Ticket</a>
+      <button class="btn-logout" onclick="handleLogout()">Logout</button>
+    </div>
+  </header>
+
+  <div class="container">
+    
+    <!-- Executive Summary Cards -->
+    <div class="stats-grid">
+      <div class="stat-card open">
+        <div class="stat-label">Open Tickets</div>
+        <div class="stat-value" id="countOpen">0</div>
+      </div>
+      <div class="stat-card in-progress">
+        <div class="stat-label">In Progress</div>
+        <div class="stat-value" id="countInProgress">0</div>
+      </div>
+      <div class="stat-card resolved">
+        <div class="stat-label">Pending Confirmation</div>
+        <div class="stat-value" id="countResolved">0</div>
+      </div>
+      <div class="stat-card closed">
+        <div class="stat-label">Closed</div>
+        <div class="stat-value" id="countClosed">0</div>
+      </div>
+    </div>
+
+    <!-- Main Table Container -->
+    <div class="card">
+      <div class="header-row">
+        <h2>My Submitted Support Tickets</h2>
+      </div>
+
+      <!-- Controls & Search -->
+      <div class="table-toolbar">
+        <div class="search-box">
+          <input type="text" id="searchInput" class="form-control" placeholder="Search by Ticket Ref, Title, or Notes..." oninput="handleFilterChange()">
+        </div>
+        <div class="filter-box">
+          <select id="statusFilter" class="form-control" onchange="handleFilterChange()">
+            <option value="">All Statuses</option>
+            <option value="Open">Open</option>
+            <option value="Approved">Approved</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Resolved">Resolved</option>
+            <option value="Closed">Closed</option>
+            <option value="Rejected">Rejected</option>
+          </select>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th class="sortable" onclick="sortTable('ref')">Ticket Ref ↕</th>
+            <th>Type</th>
+            <th class="sortable" onclick="sortTable('title')">Subject / Fix Notes ↕</th>
+            <th>Priority</th>
+            <th class="sortable" onclick="sortTable('status')">Status ↕</th>
+            <th class="sortable" onclick="sortTable('target')">SLA Target ↕</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="myTicketsTableBody">
+          <tr><td colspan="7" style="text-align:center;">Loading tickets...</td></tr>
+        </tbody>
+      </table>
+
+      <!-- Pagination -->
+      <div class="pagination-bar">
+        <div id="paginationSummary">Showing 0 of 0 tickets</div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button id="prevBtn" class="btn-page" onclick="changePage(-1)" disabled>Previous</button>
+          <span id="pageIndicator" style="font-weight: bold;">Page 1</span>
+          <button id="nextBtn" class="btn-page" onclick="changePage(1)" disabled>Next</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reopen Ticket Modal Prompt -->
+  <div id="reopenModal" class="modal-overlay">
+    <div class="modal">
+      <h3 style="margin-bottom: 12px; color: #1a252f;">Re-open Support Ticket</h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">
+        Please state why the resolution was incomplete so our technical agents can investigate further.
+      </p>
+      <textarea id="reopenReasonInput" class="form-control" rows="4" placeholder="Explain what still needs fixing..."></textarea>
+      <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;">
+        <button class="btn-page" onclick="closeReopenModal()">Cancel</button>
+        <button class="btn-action btn-reopen" id="submitReopenBtn" onclick="submitReopenTicket()">Confirm Re-open</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Script Integration -->
+  <script src="auth-guard.js"></script>
+  <script>
+    let currentUser = null;
+    let rawTicketsList = [];
+    let filteredTicketsList = [];
+    let selectedTicketForReopen = null;
+
+    // Table State
+    let currentPage = 1;
+    const pageSize = 7;
+    let sortColumn = 'id';
+    let sortAscending = false;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Allows all active authenticated roles to access their ticket history
+      if (typeof protectPage === 'function') {
+        currentUser = await protectPage(['requester', 'manager', 'resolver', 'admin', 'super_admin']);
+      } else {
+        console.warn('protectPage is not defined. Falling back to direct API session check.');
+        currentUser = await loadFallbackUserSession();
+      }
+
+      if (currentUser) {
+        document.getElementById('userInfo').innerText = `${currentUser.name} (${currentUser.role.replace('_', ' ').toUpperCase()})`;
+      } else {
+        return;
+      }
+
+      await loadMyTickets();
+    });
+
+    async function loadFallbackUserSession() {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (!res.ok) throw new Error('Not logged in');
+        return await res.json();
+      } catch (err) {
+        window.location.href = '/login.html';
+        return null;
+      }
+    }
+
+    async function loadMyTickets() {
+      const tbody = document.getElementById('myTicketsTableBody');
+      try {
+        const res = await fetch('/api/tickets/my-tickets');
+        if (!res.ok) {
+          if (res.status === 401) {
+            window.location.href = '/login.html';
+            return;
+          }
+          throw new Error(`Server error (${res.status})`);
+        }
+
+        rawTicketsList = await res.json();
+        updateSummaryMetrics();
+        handleFilterChange();
+
+      } catch (err) {
+        console.error('Failed to load tickets:', err);
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#dc3545; font-weight:600;">Unable to load tickets: ${escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    function updateSummaryMetrics() {
+      let open = 0, inProg = 0, resolved = 0, closed = 0;
+      rawTicketsList.forEach(t => {
+        const status = (t.status || '').toLowerCase();
+        if (status === 'open') open++;
+        else if (status === 'in progress' || status === 'in_progress' || status === 'approved') inProg++;
+        else if (status === 'resolved') resolved++;
+        else if (status === 'closed') closed++;
+      });
+
+      document.getElementById('countOpen').textContent = open;
+      document.getElementById('countInProgress').textContent = inProg;
+      document.getElementById('countResolved').textContent = resolved;
+      document.getElementById('countClosed').textContent = closed;
+    }
+
+    function handleFilterChange() {
+      const query = document.getElementById('searchInput').value.toLowerCase().trim();
+      const statusFilter = document.getElementById('statusFilter').value;
+
+      filteredTicketsList = rawTicketsList.filter(t => {
+        const refNumber = (t.ticket_number || `#${t.id}`).toLowerCase();
+        const title = (t.title || '').toLowerCase();
+        const notes = (t.resolution_notes || '').toLowerCase();
+
+        const matchesQuery = refNumber.includes(query) || title.includes(query) || notes.includes(query);
+        const matchesStatus = statusFilter === '' || t.status === statusFilter;
+
+        return matchesQuery && matchesStatus;
+      });
+
+      currentPage = 1;
+      renderTable();
+    }
+
+    function sortTable(columnKey) {
+      if (sortColumn === columnKey) {
+        sortAscending = !sortAscending;
+      } else {
+        sortColumn = columnKey;
+        sortAscending = true;
+      }
+
+      filteredTicketsList.sort((a, b) => {
+        let valA = a[columnKey] || '';
+        let valB = b[columnKey] || '';
+
+        if (columnKey === 'ref') {
+          valA = a.ticket_number || a.id;
+          valB = b.ticket_number || b.id;
+        } else if (columnKey === 'target') {
+          valA = a.sla_target_resolution ? new Date(a.sla_target_resolution).getTime() : 0;
+          valB = b.sla_target_resolution ? new Date(b.sla_target_resolution).getTime() : 0;
+        }
+
+        if (valA < valB) return sortAscending ? -1 : 1;
+        if (valA > valB) return sortAscending ? 1 : -1;
+        return 0;
+      });
+
+      renderTable();
+    }
+
+    function changePage(direction) {
+      currentPage += direction;
+      renderTable();
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('myTicketsTableBody');
+      const totalTickets = filteredTicketsList.length;
+
+      if (totalTickets === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">No matching support tickets found.</td></tr>`;
+        document.getElementById('paginationSummary').textContent = 'Showing 0 of 0 tickets';
+        document.getElementById('prevBtn').disabled = true;
+        document.getElementById('nextBtn').disabled = true;
+        document.getElementById('pageIndicator').textContent = 'Page 1';
+        return;
+      }
+
+      const totalPages = Math.ceil(totalTickets / pageSize);
+      if (currentPage > totalPages) currentPage = totalPages;
+
+      const startIndex = (currentPage - 1) * pageSize;
+      const endIndex = Math.min(startIndex + pageSize, totalTickets);
+      const pageData = filteredTicketsList.slice(startIndex, endIndex);
+
+      tbody.innerHTML = pageData.map(t => {
+        const refNumber = t.ticket_number ? t.ticket_number : `#${t.id}`;
+        const statusClass = (t.status || 'open').toLowerCase().replace(/\s+/g, '-');
+
+        // SLA display
+        let slaDisplay = '<span class="sla-pending">In Progress</span>';
+        if (t.sla_resolution_status === 'Met') {
+          slaDisplay = '<span class="sla-met">✓ Met</span>';
+        } else if (t.sla_resolution_status === 'Breached') {
+          slaDisplay = '<span class="sla-breached">✕ Breached</span>';
+        } else if (t.sla_target_resolution) {
+          const targetDate = new Date(t.sla_target_resolution).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+          slaDisplay = `<small>${targetDate}</small>`;
+        }
+
+        // Resolver Note
+        let noteHtml = '';
+        if (t.resolution_notes) {
+          noteHtml = `<div class="resolution-box"><strong>Fix Details:</strong> ${escapeHtml(t.resolution_notes)}</div>`;
+        }
+
+        // Actions
+        let actionBtnHtml = '-';
+        if (t.status === 'Resolved') {
+          actionBtnHtml = `
+            <button onclick="confirmTicket(${t.id})" id="confirmBtn_${t.id}" class="btn-action btn-confirm">Confirm Fix</button>
+            <button onclick="openReopenModal(${t.id})" class="btn-action btn-reopen">Re-open</button>
+          `;
+        }
+
+        return `
+          <tr>
+            <td><span class="ticket-ref">${escapeHtml(refNumber)}</span></td>
+            <td>${escapeHtml(t.ticket_type || 'Incident')}</td>
+            <td>
+              <strong>${escapeHtml(t.title)}</strong>
+              ${noteHtml}
+            </td>
+            <td>${escapeHtml(t.priority || 'Normal')}</td>
+            <td><span class="badge badge-${statusClass}">${escapeHtml(t.status)}</span></td>
+            <td>${slaDisplay}</td>
+            <td>${actionBtnHtml}</td>
+          </tr>
+        `;
+      }).join('');
+
+      // Pagination Summary
+      document.getElementById('paginationSummary').textContent = `Showing ${startIndex + 1}–${endIndex} of ${totalTickets} tickets`;
+      document.getElementById('pageIndicator').textContent = `Page ${currentPage} of ${totalPages}`;
+      document.getElementById('prevBtn').disabled = currentPage === 1;
+      document.getElementById('nextBtn').disabled = currentPage === totalPages;
+    }
+
+    async function confirmTicket(ticketId) {
+      if (!confirm('Are you sure you want to confirm the resolution and close this ticket?')) return;
+
+      const btn = document.getElementById(`confirmBtn_${ticketId}`);
+      if (btn) { btn.disabled = true; btn.textContent = 'Closing...'; }
+
+      try {
+        const res = await fetch(`/api/tickets/${ticketId}/confirm`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'Confirm' })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          await loadMyTickets();
+        } else {
+          alert(data.error || 'Failed to update ticket state.');
+        }
+      } catch (err) {
+        alert('Server communication error.');
+      }
+    }
+
+    function openReopenModal(ticketId) {
+      selectedTicketForReopen = ticketId;
+      document.getElementById('reopenReasonInput').value = '';
+      document.getElementById('reopenModal').style.display = 'flex';
+    }
+
+    function closeReopenModal() {
+      selectedTicketForReopen = null;
+      document.getElementById('reopenModal').style.display = 'none';
+    }
+
+    async function submitReopenTicket() {
+      if (!selectedTicketForReopen) return;
+
+      const reason = document.getElementById('reopenReasonInput').value.trim();
+      const submitBtn = document.getElementById('submitReopenBtn');
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Processing...';
+
+      try {
+        const res = await fetch(`/api/tickets/${selectedTicketForReopen}/confirm`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'Reopen', reason })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          closeReopenModal();
+          await loadMyTickets();
+        } else {
+          alert(data.error || 'Failed to re-open ticket.');
+        }
+      } catch (err) {
+        alert('Server communication error.');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Confirm Re-open';
+      }
+    }
+
+    async function handleLogout() {
+      try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+      } catch (err) {
+        console.warn('Logout API call failed, redirecting...');
+      } finally {
+        window.location.href = '/login.html';
+      }
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+  </script>
+</body>
+</html>

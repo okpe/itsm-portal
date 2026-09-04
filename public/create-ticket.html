@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Submit Support Ticket</title>
+  <style>
+    :root { --primary: #0056b3; --bg-color: #f4f6f9; --card-bg: #fff; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+    body { background-color: var(--bg-color); color: #333; }
+    header { background-color: #1a252f; color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+    header .brand { font-size: 1.2rem; font-weight: 700; color: #007bff; }
+    .nav-links { display: flex; align-items: center; gap: 15px; font-size: 0.9rem; }
+    .btn-logout { background: #dc3545; color: #fff; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; }
+    .container { max-width: 650px; margin: 40px auto; padding: 0 20px; }
+    .card { background: var(--card-bg); padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+    h2 { font-size: 1.4rem; color: #1a252f; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+    .form-group { margin-bottom: 18px; text-align: left; }
+    label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.88rem; }
+    input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px; font-size: 0.95rem; }
+    textarea { height: 120px; resize: vertical; }
+    .btn-submit { width: 100%; background: #0056b3; color: white; padding: 12px; border: none; border-radius: 4px; font-size: 1rem; font-weight: 600; cursor: pointer; }
+    .btn-submit:hover { background: #004085; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">IT Helpdesk Portal</div>
+    <div class="nav-links">
+      <span id="userInfo">Loading account...</span>
+      <button class="btn-logout" onclick="handleLogout()">Logout</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="card">
+      <h2>Submit a Ticket</h2>
+
+      <form id="ticketForm">
+        <div class="form-group">
+          <label for="title">Ticket Subject / Title *</label>
+          <input type="text" id="title" required placeholder="Brief description of the issue">
+        </div>
+         
+		 <div class="form-group">
+          <label for="ticket_type">Ticket Type *</label>
+          <select id="ticket_type" required>
+          <option value="Incident">Incident (INC)</option>
+          <option value="Service Request">Service Request (SR)</option>
+          <option value="Change Request">Change Request (CR)</option>
+          </select>
+         </div>
+		 
+        <div class="form-group">
+          <label for="category">Category</label>
+          <select id="category">
+            <option value="General IT Support">General IT Support</option>
+            <option value="Hardware Issue">Hardware Issue</option>
+            <option value="Software Request">Software Request</option>
+            <option value="Network & Internet">Network & Internet</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="priority">Priority Level</label>
+          <select id="priority">
+            <option value="Low">Low</option>
+            <option value="Medium" selected>Medium</option>
+            <option value="High">High</option>
+            <option value="Urgent">Urgent</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="description">Detailed Description *</label>
+          <textarea id="description" required placeholder="Please describe the issue in detail..."></textarea>
+        </div>
+
+        <button type="submit" class="btn-submit">Submit Ticket</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="/auth-guard.js"></script>
+  <script>
+    let currentUser = null;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      currentUser = await protectPage();
+      if (!currentUser) return;
+      document.getElementById('userInfo').innerText = `${currentUser.name} (${currentUser.role.toUpperCase()})`;
+    });
+
+    document.getElementById('ticketForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const payload = {
+        title: document.getElementById('title').value.trim(),
+        category: document.getElementById('category').value,
+        priority: document.getElementById('priority').value,
+        description: document.getElementById('description').value.trim()
+      };
+
+      try {
+        const res = await fetch('/api/tickets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          alert('Ticket created successfully!');
+          window.location.href = '/requester-dashboard.html';
+        } else {
+          alert(`Error: ${data.error || 'Failed to submit ticket'}`);
+        }
+      } catch (err) {
+        alert('Network error submitting ticket.');
+      }
+    });
+
+    async function handleLogout() {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/login.html';
+    }
+  </script>
+</body>
+</html>

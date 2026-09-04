@@ -1,0 +1,6 @@
+# Common examples to exclude
+.env
+node_modules/
+venv/
+*.log
+.DS_Store
