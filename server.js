@@ -21,6 +21,18 @@ const {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Helper function to sanitize CSV fields against Formula Injection
+const sanitizeCsvField = (val) => {
+  let str = (val || '').toString();
+  // Escape double quotes
+  str = str.replace(/"/g, '""');
+  // Prevent CSV formula execution in Excel/Sheets
+  if (/^[=+\-@\t\r]/.test(str)) {
+    str = `'` + str;
+  }
+  return `"${str}"`;
+};
+
 // Body parser middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -58,8 +70,10 @@ app.get('/', (req, res) => {
   res.redirect('/login.html');
 });
 
-// Utility Diagnostic / Admin Recovery Endpoints
-app.get('/api/nuke-session', (req, res) => {
+// ================= SECURED DIAGNOSTIC / ADMIN ENDPOINTS =================
+
+// Secured session nuke (Requires active login)
+app.get('/api/nuke-session', requireAuth, (req, res) => {
   if (req.session) {
     req.session.destroy(() => {
       res.clearCookie('connect.sid');
@@ -70,7 +84,13 @@ app.get('/api/nuke-session', (req, res) => {
   }
 });
 
-app.get('/api/fix-my-role', async (req, res) => {
+// Strictly protected behind Super Admin access
+app.get('/api/fix-my-role', requireAuth, requireAdminOrSuper, async (req, res) => {
+  const sessionRole = String(req.session.user.role || '').toLowerCase();
+  if (sessionRole !== 'super_admin') {
+    return res.status(403).send('Only active Super Admins can invoke emergency role repair.');
+  }
+
   try {
     await db.runAsync("UPDATE users SET role = 'super_admin', access_helpdesk = 1, access_assets = 1 WHERE email = 'superadmin@helpdesk.local'");
     
@@ -325,8 +345,9 @@ app.put('/api/admin/users/:id', requireAuth, requireAdminOrSuper, async (req, re
       return res.status(403).json({ error: 'Super Administrator accounts are protected and cannot be edited' });
     }
 
-    if ((newRole === 'super_admin' || newRole === 'admin') && sessionRole !== 'super_admin') {
-      return res.status(403).json({ error: 'Only Super Admins can assign Administrative roles' });
+    // Guard: Standard Admins cannot elevate anyone to admin/super_admin or alter an Admin account
+    if ((newRole === 'super_admin' || newRole === 'admin' || targetRole === 'admin') && sessionRole !== 'super_admin') {
+      return res.status(403).json({ error: 'Only Super Admins can manage or assign Administrative roles' });
     }
 
     if (!name || !email || !role) {
@@ -454,7 +475,7 @@ app.get('/api/tickets/:id', requireAuth, requireHelpdeskAccess, async (req, res)
 
   try {
     const ticket = await db.getAsync(
-      `SELECT t.*, u.name as requester_name, u.email as requester_email 
+      `SELECT t.*, u.name as requester_name, u.email as requester_email, u.manager_id as requester_manager_id 
        FROM tickets t JOIN users u ON t.requester_id = u.id WHERE t.id = ?`,
       [ticketId]
     );
@@ -464,8 +485,11 @@ app.get('/api/tickets/:id', requireAuth, requireHelpdeskAccess, async (req, res)
     }
 
     const userRole = String(user.role || '').toLowerCase();
-    const isStaff = ['admin', 'super_admin', 'superadmin', 'manager'].includes(userRole);
-    if (!isStaff && ticket.requester_id !== user.id) {
+    const isAdmin = ['admin', 'super_admin', 'superadmin'].includes(userRole);
+    const isOwner = ticket.requester_id === user.id;
+    const isDirectManager = userRole === 'manager' && ticket.requester_manager_id === user.id;
+
+    if (!isAdmin && !isOwner && !isDirectManager) {
       return res.status(403).json({ error: 'Access denied to this ticket' });
     }
 
@@ -663,7 +687,7 @@ app.get('/api/assets', requireAuth, requireAssetManager, requireAssetAccess, asy
   }
 });
 
-// SHARED CSV EXPORT LOGIC
+// SHARED CSV EXPORT LOGIC WITH FORMULA INJECTION PREVENTION
 const assetExportHandler = async (req, res) => {
   const { status, category } = req.query;
   let conditions = [];
@@ -691,12 +715,11 @@ const assetExportHandler = async (req, res) => {
     let csv = 'Asset Tag,Category,Model,Serial Number,Status,Cost,Salvage Value,PO Number,Vendor,Location,Assigned To (Name),Assigned To (Email),Purchase Date,Warranty Expiry,Last Repair Date,Refreshed At,Created At\n';
 
     rows.forEach((r) => {
-      const escape = (str) => `"${(str || '').toString().replace(/"/g, '""')}"`;
       csv += [
-        escape(r.asset_tag), escape(r.category), escape(r.model), escape(r.serial_number),
-        escape(r.status), escape(r.cost), escape(r.salvage_value), escape(r.po_number), escape(r.vendor),
-        escape(r.location), escape(r.assigned_user_name), escape(r.assigned_user_email),
-        escape(r.purchase_date), escape(r.warranty_expiry), escape(r.last_repair_date), escape(r.refreshed_at), escape(r.created_at)
+        sanitizeCsvField(r.asset_tag), sanitizeCsvField(r.category), sanitizeCsvField(r.model), sanitizeCsvField(r.serial_number),
+        sanitizeCsvField(r.status), sanitizeCsvField(r.cost), sanitizeCsvField(r.salvage_value), sanitizeCsvField(r.po_number), sanitizeCsvField(r.vendor),
+        sanitizeCsvField(r.location), sanitizeCsvField(r.assigned_user_name), sanitizeCsvField(r.assigned_user_email),
+        sanitizeCsvField(r.purchase_date), sanitizeCsvField(r.warranty_expiry), sanitizeCsvField(r.last_repair_date), sanitizeCsvField(r.refreshed_at), sanitizeCsvField(r.created_at)
       ].join(',') + '\n';
     });
 
@@ -978,13 +1001,12 @@ app.get('/api/admin/reports/export', requireAuth, requireAdminOrSuper, async (re
     let csvString = 'Ticket Ref,Type,Title,Category,Priority,Status,Requester Name,Requester Email,SLA Status,Created At,Resolved At,Closed At\n';
 
     rows.forEach((r) => {
-      const escapeCsv = (str) => `"${(str || '').toString().replace(/"/g, '""')}"`;
       csvString += [
-        escapeCsv(r.ticket_number), escapeCsv(r.ticket_type), escapeCsv(r.title),
-        escapeCsv(r.category), escapeCsv(r.priority), escapeCsv(r.status),
-        escapeCsv(r.requester_name), escapeCsv(r.requester_email),
-        escapeCsv(r.sla_resolution_status), escapeCsv(r.created_at),
-        escapeCsv(r.resolved_at), escapeCsv(r.closed_at)
+        sanitizeCsvField(r.ticket_number), sanitizeCsvField(r.ticket_type), sanitizeCsvField(r.title),
+        sanitizeCsvField(r.category), sanitizeCsvField(r.priority), sanitizeCsvField(r.status),
+        sanitizeCsvField(r.requester_name), sanitizeCsvField(r.requester_email),
+        sanitizeCsvField(r.sla_resolution_status), sanitizeCsvField(r.created_at),
+        sanitizeCsvField(r.resolved_at), sanitizeCsvField(r.closed_at)
       ].join(',') + '\n';
     });
 
@@ -1005,7 +1027,7 @@ cron.schedule('0 * * * *', async () => {
        SET sla_resolution_status = 'Breached', updated_at = CURRENT_TIMESTAMP
        WHERE status IN ('Open', 'Approved', 'In Progress') 
          AND sla_target_resolution IS NOT NULL 
-         AND sla_target_resolution < ? 
+         AND datetime(sla_target_resolution) < datetime(?) 
          AND sla_resolution_status = 'Pending'`,
       [nowIso]
     );
