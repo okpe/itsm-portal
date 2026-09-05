@@ -73,7 +73,6 @@
     .badge-custom { padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; display: inline-block; }
     .badge-requester { background: #e2e3e5; color: #383d41; }
     .badge-manager { background: #cce5ff; color: #004085; }
-    .badge-resolver { background: #d4edda; color: #155724; }
     .badge-admin { background: #fff3cd; color: #856404; }
     .badge-super_admin { background: #6f42c1; color: #ffffff; }
     .badge-module { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; margin-right: 4px; }
@@ -139,8 +138,8 @@
       <div class="metrics-grid">
         <div class="metric-card"><div class="title">Total Users</div><div class="value" id="user-stat-total">0</div></div>
         <div class="metric-card"><div class="title">Requesters</div><div class="value" id="user-stat-requester">0</div></div>
-        <div class="metric-card"><div class="title">Resolvers</div><div class="value" id="user-stat-resolver">0</div></div>
-        <div class="metric-card"><div class="title">Admins / Managers</div><div class="value" id="user-stat-admin">0</div></div>
+        <div class="metric-card"><div class="title">Managers</div><div class="value" id="user-stat-manager">0</div></div>
+        <div class="metric-card"><div class="title">Admins</div><div class="value" id="user-stat-admin">0</div></div>
       </div>
 
       <div class="card-box">
@@ -156,7 +155,6 @@
               <option value="">All Roles</option>
               <option value="requester">Requester</option>
               <option value="manager">Manager</option>
-              <option value="resolver">Resolver</option>
               <option value="admin">Admin</option>
               <option value="super_admin">Super Admin</option>
             </select>
@@ -338,7 +336,6 @@
           <select id="edit_role" class="form-control-custom" required onchange="handleRoleChange()">
             <option value="requester">Requester</option>
             <option value="manager">Manager</option>
-            <option value="resolver">Resolver</option>
             <option value="admin">Admin</option>
             <option value="super_admin" id="superAdminOption">Super Admin</option>
           </select>
@@ -521,8 +518,8 @@
     function updateUserMetrics() {
       document.getElementById('user-stat-total').innerText = rawUsersList.length;
       document.getElementById('user-stat-requester').innerText = rawUsersList.filter(u => u.role === 'requester').length;
-      document.getElementById('user-stat-resolver').innerText = rawUsersList.filter(u => u.role === 'resolver').length;
-      document.getElementById('user-stat-admin').innerText = rawUsersList.filter(u => ['admin', 'manager', 'super_admin'].includes(u.role)).length;
+      document.getElementById('user-stat-manager').innerText = rawUsersList.filter(u => u.role === 'manager').length;
+      document.getElementById('user-stat-admin').innerText = rawUsersList.filter(u => ['admin', 'super_admin'].includes(u.role)).length;
     }
 
     async function fetchManagers() {
