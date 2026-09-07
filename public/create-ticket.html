@@ -16,8 +16,11 @@
     .card { background: var(--card-bg); padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
     h2 { font-size: 1.4rem; color: #1a252f; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
     .form-group { margin-bottom: 18px; text-align: left; }
+    .form-row { display: flex; gap: 15px; }
+    .form-row .form-group { flex: 1; }
     label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.88rem; }
     input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px; font-size: 0.95rem; }
+    input[readonly] { background-color: #e9ecef; cursor: not-allowed; }
     textarea { height: 120px; resize: vertical; }
     .btn-submit { width: 100%; background: #0056b3; color: white; padding: 12px; border: none; border-radius: 4px; font-size: 1rem; font-weight: 600; cursor: pointer; }
     .btn-submit:hover { background: #004085; }
@@ -43,14 +46,26 @@
           <input type="text" id="title" required placeholder="Brief description of the issue">
         </div>
          
-		 <div class="form-group">
+        <!-- Added Subsidiary and Department Fields -->
+        <div class="form-row">
+          <div class="form-group">
+            <label for="subsidiary">Subsidiary</label>
+            <input type="text" id="subsidiary" placeholder="Auto-detecting..." readonly>
+          </div>
+          <div class="form-group">
+            <label for="department">Department</label>
+            <input type="text" id="department" placeholder="Auto-detecting..." readonly>
+          </div>
+        </div>
+
+        <div class="form-group">
           <label for="ticket_type">Ticket Type *</label>
           <select id="ticket_type" required>
-          <option value="Incident">Incident (INC)</option>
-          <option value="Service Request">Service Request (SR)</option>
-          <option value="Change Request">Change Request (CR)</option>
+            <option value="Incident">Incident (INC)</option>
+            <option value="Service Request">Service Request (SR)</option>
+            <option value="Change Request">Change Request (CR)</option>
           </select>
-         </div>
+        </div>
 		 
         <div class="form-group">
           <label for="category">Category</label>
@@ -89,7 +104,14 @@
     document.addEventListener('DOMContentLoaded', async () => {
       currentUser = await protectPage();
       if (!currentUser) return;
-      document.getElementById('userInfo').innerText = `${currentUser.name} (${currentUser.role.toUpperCase()})`;
+
+      const displayName = currentUser.name || currentUser.email || 'User';
+      const displayRole = (currentUser.role || 'USER').toUpperCase();
+      document.getElementById('userInfo').innerText = `${displayName} (${displayRole})`;
+
+      // Auto-populate user's subsidiary and department details
+      document.getElementById('subsidiary').value = currentUser.subsidiary || 'N/A';
+      document.getElementById('department').value = currentUser.department || 'N/A';
     });
 
     document.getElementById('ticketForm').addEventListener('submit', async (e) => {
@@ -97,23 +119,38 @@
 
       const payload = {
         title: document.getElementById('title').value.trim(),
+        subsidiary: document.getElementById('subsidiary').value,
+        department: document.getElementById('department').value,
+        ticket_type: document.getElementById('ticket_type').value,
         category: document.getElementById('category').value,
         priority: document.getElementById('priority').value,
         description: document.getElementById('description').value.trim()
       };
 
       try {
-        const res = await fetch('/api/tickets', {
+        const res = await authFetch('/api/tickets', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
+
+        if (!res) return; // authFetch redirects to login on 401
 
         const data = await res.json();
 
         if (res.ok) {
           alert('Ticket created successfully!');
-          window.location.href = '/requester-dashboard.html';
+          
+          const role = (currentUser && currentUser.role) ? currentUser.role.toLowerCase() : '';
+          
+          if (role === 'manager') {
+            window.location.href = '/manager-dashboard.html';
+          } else if (role === 'resolver') {
+            window.location.href = '/resolver-dashboard.html';
+          } else if (role === 'admin' || role === 'super_admin') {
+            window.location.href = '/admin-dashboard.html';
+          } else {
+            window.location.href = '/requester-dashboard.html';
+          }
         } else {
           alert(`Error: ${data.error || 'Failed to submit ticket'}`);
         }
@@ -123,7 +160,7 @@
     });
 
     async function handleLogout() {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await authFetch('/api/auth/logout', { method: 'POST' });
       window.location.href = '/login.html';
     }
   </script>

@@ -46,27 +46,51 @@
     .nav-link-custom.active { background: #007bff; color: #fff; }
 
     /* KPI Summary Metrics */
+    /* KPI Summary Metrics - FIXED LAYOUT */
     .stats-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      grid-template-columns: repeat(4, 1fr); /* Enforces 4 equal columns */
       gap: 15px;
       margin-bottom: 25px;
     }
+    @media (max-width: 992px) {
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    
     .stat-card {
       background: var(--card-bg);
       padding: 18px 20px;
       border-radius: 8px;
       box-shadow: 0 2px 5px rgba(0,0,0,0.04);
       border-left: 4px solid var(--primary);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 90px; /* Ensures consistent card height */
+      box-sizing: border-box;
+      overflow: hidden;
     }
     .stat-card.pending { border-left-color: #007bff; }
     .stat-card.progress { border-left-color: #fd7e14; }
     .stat-card.resolved { border-left-color: #28a745; }
     .stat-card.breached { border-left-color: #dc3545; }
 
-    .stat-label { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); }
-    .stat-value { font-size: 1.6rem; font-weight: 700; margin-top: 5px; }
-
+    .stat-label { 
+      font-size: 0.8rem; 
+      font-weight: 700; 
+      text-transform: uppercase; 
+      color: var(--text-muted); 
+      line-height: 1.2;
+      margin-bottom: 4px;
+    }
+    .stat-value { 
+      font-size: 1.6rem; 
+      font-weight: 700; 
+      line-height: 1; 
+      color: #1a252f;
+    }
     /* Interactive Controls Toolbar */
     .table-toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; width: 100%; margin-bottom: 15px; }
     .search-box { flex: 1; min-width: 240px; }

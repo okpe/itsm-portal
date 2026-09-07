@@ -35,7 +35,7 @@
     .nav-link-custom.active { background: #007bff; color: #fff; }
 
     /* Main Container & Cards */
-    .container { max-width: 1200px; margin: 0 auto 30px auto; padding: 0 15px; }
+    .container { max-width: 1280px; margin: 0 auto 30px auto; padding: 0 15px; }
     .card-box { background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 25px; }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
@@ -73,7 +73,6 @@
     .badge-custom { padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; display: inline-block; }
     .badge-requester { background: #e2e3e5; color: #383d41; }
     .badge-manager { background: #cce5ff; color: #004085; }
-    .badge-resolver { background: #d4edda; color: #155724; }
     .badge-admin { background: #fff3cd; color: #856404; }
     .badge-super_admin { background: #6f42c1; color: #ffffff; }
     .badge-module { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; margin-right: 4px; }
@@ -85,12 +84,14 @@
 
     /* Modal Overlay */
     .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000; }
-    .modal-custom { background: #fff; width: 100%; max-width: 520px; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+    .modal-custom { background: #fff; width: 100%; max-width: 580px; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto; }
     .modal-header-custom { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
     .modal-footer-custom { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
 
     /* Form Styles */
     .form-group { margin-bottom: 15px; }
+    .form-row { display: flex; gap: 15px; }
+    .form-row .form-group { flex: 1; }
     .form-group label { display: block; font-weight: 600; margin-bottom: 5px; font-size: 0.85rem; color: #495057; }
     .form-control-custom { width: 100%; padding: 9px; border: 1px solid #ced4da; border-radius: 4px; font-size: 0.9rem; }
     .checkbox-group { display: flex; gap: 20px; margin-top: 5px; }
@@ -139,8 +140,8 @@
       <div class="metrics-grid">
         <div class="metric-card"><div class="title">Total Users</div><div class="value" id="user-stat-total">0</div></div>
         <div class="metric-card"><div class="title">Requesters</div><div class="value" id="user-stat-requester">0</div></div>
-        <div class="metric-card"><div class="title">Resolvers</div><div class="value" id="user-stat-resolver">0</div></div>
-        <div class="metric-card"><div class="title">Admins / Managers</div><div class="value" id="user-stat-admin">0</div></div>
+        <div class="metric-card"><div class="title">Managers</div><div class="value" id="user-stat-manager">0</div></div>
+        <div class="metric-card"><div class="title">Admins</div><div class="value" id="user-stat-admin">0</div></div>
       </div>
 
       <div class="card-box">
@@ -156,7 +157,6 @@
               <option value="">All Roles</option>
               <option value="requester">Requester</option>
               <option value="manager">Manager</option>
-              <option value="resolver">Resolver</option>
               <option value="admin">Admin</option>
               <option value="super_admin">Super Admin</option>
             </select>
@@ -169,6 +169,7 @@
               <th>ID</th>
               <th>Name</th>
               <th>Email</th>
+              <th>Subsidiary & Dept</th>
               <th>Role</th>
               <th>Module Access</th>
               <th>Line Manager</th>
@@ -176,7 +177,7 @@
             </tr>
           </thead>
           <tbody id="userTableBody">
-            <tr><td colspan="7" style="text-align:center;">Loading users...</td></tr>
+            <tr><td colspan="8" style="text-align:center;">Loading users...</td></tr>
           </tbody>
         </table>
 
@@ -244,7 +245,6 @@
         <p style="color: #6c757d; font-size: 0.9rem; margin-bottom: 25px;">Export data logs for system auditing, SLA compliance verification, and asset tracking.</p>
 
         <div class="report-grid">
-          <!-- Helpdesk Report Card -->
           <div class="report-card">
             <h3 style="margin-bottom: 10px;">Helpdesk Performance Report</h3>
             <p style="font-size: 0.85rem; color: #555; margin-bottom: 15px;">Spool full ticket timelines, SLAs, and resolution logs based on date ranges.</p>
@@ -271,7 +271,6 @@
             </form>
           </div>
 
-          <!-- Asset Management Report Card -->
           <div class="report-card">
             <h3 style="margin-bottom: 10px;">Asset Inventory Report</h3>
             <p style="font-size: 0.85rem; color: #555; margin-bottom: 15px;">Spool complete hardware allocation logs and status reports.</p>
@@ -328,6 +327,35 @@
           <input type="email" id="edit_email" class="form-control-custom" required>
         </div>
 
+        <!-- Populated Subsidiary and Department Fields -->
+        <div class="form-row">
+          <div class="form-group">
+            <label for="edit_subsidiary">Subsidiary</label>
+            <select id="edit_subsidiary" class="form-control-custom">
+              <option value="">-- Select Subsidiary --</option>
+              <option value="Arkland Properties">Arkland Properties</option>
+              <option value="APIC Managers">APIC Managers</option>
+              <option value="ASL Contractors">ASL Contractors</option>
+              <option value="Arkland Group">Arkland Group</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="edit_department">Department</label>
+            <select id="edit_department" class="form-control-custom">
+              <option value="">-- Select Department --</option>
+              <option value="HR">HR</option>
+              <option value="Sales">Sales</option>
+              <option value="Frontdesk">Frontdesk</option>
+              <option value="Procurement">Procurement</option>
+              <option value="Media">Media</option>
+              <option value="Design">Design</option>
+              <option value="IT">IT</option>
+              <option value="Account">Account</option>
+              <option value="HSE">HSE</option>
+            </select>
+          </div>
+        </div>
+
         <div class="form-group" id="passwordGroup">
           <label for="edit_password">Password *</label>
           <input type="password" id="edit_password" class="form-control-custom">
@@ -338,7 +366,6 @@
           <select id="edit_role" class="form-control-custom" required onchange="handleRoleChange()">
             <option value="requester">Requester</option>
             <option value="manager">Manager</option>
-            <option value="resolver">Resolver</option>
             <option value="admin">Admin</option>
             <option value="super_admin" id="superAdminOption">Super Admin</option>
           </select>
@@ -469,11 +496,9 @@
 
       if (!currentUser) return;
 
-      // Update UI navbar display
       const accountElem = document.getElementById('navUser');
       if (accountElem) accountElem.textContent = `${currentUser.name} (${String(currentUser.role || '').toUpperCase()})`;
 
-      // Restrict Super Admin option if user is standard Admin
       if (currentUser.role !== 'super_admin') {
         const superOption = document.getElementById('superAdminOption');
         if (superOption) superOption.remove();
@@ -514,15 +539,15 @@
       } catch (err) {
         showPageAlert(`Users API Error: ${err.message}`, 'danger');
         document.getElementById('userTableBody').innerHTML = 
-          `<tr><td colspan="7" style="text-align:center; color:red;">${escapeHtml(err.message)}</td></tr>`;
+          `<tr><td colspan="8" style="text-align:center; color:red;">${escapeHtml(err.message)}</td></tr>`;
       }
     }
 
     function updateUserMetrics() {
       document.getElementById('user-stat-total').innerText = rawUsersList.length;
       document.getElementById('user-stat-requester').innerText = rawUsersList.filter(u => u.role === 'requester').length;
-      document.getElementById('user-stat-resolver').innerText = rawUsersList.filter(u => u.role === 'resolver').length;
-      document.getElementById('user-stat-admin').innerText = rawUsersList.filter(u => ['admin', 'manager', 'super_admin'].includes(u.role)).length;
+      document.getElementById('user-stat-manager').innerText = rawUsersList.filter(u => u.role === 'manager').length;
+      document.getElementById('user-stat-admin').innerText = rawUsersList.filter(u => ['admin', 'super_admin'].includes(u.role)).length;
     }
 
     async function fetchManagers() {
@@ -560,7 +585,7 @@
       const totalUsers = filteredUsersList.length;
 
       if (totalUsers === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No matching users found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">No matching users found.</td></tr>';
         document.getElementById('paginationSummary').textContent = 'Showing 0 of 0 users';
         document.getElementById('prevPageBtn').disabled = true;
         document.getElementById('nextPageBtn').disabled = true;
@@ -580,6 +605,10 @@
           <td>#${user.id}</td>
           <td><strong>${escapeHtml(user.name)}</strong></td>
           <td>${escapeHtml(user.email)}</td>
+          <td>
+            <div class="fw-semibold text-dark">${escapeHtml(user.subsidiary || 'N/A')}</div>
+            <div class="small text-muted">${escapeHtml(user.department || 'Unassigned')}</div>
+          </td>
           <td><span class="badge-custom badge-${user.role}">${user.role.replace('_', ' ')}</span></td>
           <td>
             ${(user.access_helpdesk ?? 1) ? '<span class="badge-custom badge-module">Helpdesk</span>' : ''}
@@ -635,6 +664,9 @@
       document.getElementById('edit_name').value = user.name;
       document.getElementById('edit_email').value = user.email;
       
+      document.getElementById('edit_subsidiary').value = user.subsidiary || '';
+      document.getElementById('edit_department').value = user.department || '';
+
       const pwdInput = document.getElementById('edit_password');
       pwdInput.value = '';
       pwdInput.required = false;
@@ -664,6 +696,8 @@
       const payload = {
         name: document.getElementById('edit_name').value.trim(),
         email: document.getElementById('edit_email').value.trim(),
+        subsidiary: document.getElementById('edit_subsidiary').value || null,
+        department: document.getElementById('edit_department').value || null,
         role: document.getElementById('edit_role').value,
         access_helpdesk: document.getElementById('access_helpdesk').checked ? 1 : 0,
         access_assets: document.getElementById('access_assets').checked ? 1 : 0,

@@ -74,7 +74,7 @@
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
       <div>
         <h1 class="h3 mb-0 text-gray-800">System Reports & Analytics</h1>
-        <p class="text-muted small mb-0">Spool comprehensive analytics for support tickets and hardware inventory.</p>
+        <p class="text-muted small mb-0">Spool comprehensive analytics for support tickets, asset valuations, and hardware lifecycles.</p>
       </div>
       
       <!-- Toggle between Helpdesk and Asset Management Reports -->
@@ -86,7 +86,7 @@
         </li>
         <li class="nav-item" role="presentation">
           <button class="nav-link" id="asset-tab" data-bs-toggle="pill" data-bs-target="#asset-pane" type="button" role="tab">
-            <i class="bi bi-laptop me-1"></i>Asset Management Reports
+            <i class="bi bi-laptop me-1"></i>Asset & Financial Analytics
           </button>
         </li>
       </ul>
@@ -103,7 +103,7 @@
           <div class="card-body p-3">
             <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
               <h2 class="h6 mb-0 text-uppercase fw-bold text-secondary">Ticket Filters & Export</h2>
-              <div class="btn-group btn-group-sm" role="group">
+              <div class="btn-group btn-group-sm" id="ticketPresetGroup" role="group">
                 <button type="button" class="btn btn-outline-secondary" onclick="applyTicketPreset(7, this)">Last 7 Days</button>
                 <button type="button" class="btn btn-outline-secondary" onclick="applyTicketPreset(30, this)">Last 30 Days</button>
                 <button type="button" class="btn btn-outline-secondary active" onclick="resetTicketFilters(this)">All Time</button>
@@ -113,11 +113,11 @@
             <form id="ticketFilterForm" class="row g-3 align-items-end" onsubmit="handleTicketFilterSubmit(event)">
               <div class="col-12 col-sm-4 col-md-3">
                 <label for="startDate" class="form-label small fw-semibold text-muted">Start Date</label>
-                <input type="date" id="startDate" class="form-control form-control-sm">
+                <input type="date" id="startDate" name="startDate" class="form-control form-control-sm">
               </div>
               <div class="col-12 col-sm-4 col-md-3">
                 <label for="endDate" class="form-label small fw-semibold text-muted">End Date</label>
-                <input type="date" id="endDate" class="form-control form-control-sm">
+                <input type="date" id="endDate" name="endDate" class="form-control form-control-sm">
               </div>
               <div class="col-12 col-sm-4 col-md-6 d-flex gap-2">
                 <button type="submit" class="btn btn-primary btn-sm fw-semibold">
@@ -195,33 +195,45 @@
       </div>
 
 
-      <!-- ================= 2. ASSET MANAGEMENT REPORTS TAB ================= -->
+      <!-- ================= 2. ASSET & FINANCIAL ANALYTICS TAB ================= -->
       <div class="tab-pane fade" id="asset-pane" role="tabpanel" aria-labelledby="asset-tab">
         
         <!-- Asset Filter & Export Toolbar -->
         <div class="card border-0 shadow-sm mb-4">
           <div class="card-body p-3">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-              <div class="d-flex align-items-center gap-2 flex-grow-1">
-                <label for="assetStatusFilter" class="form-label small fw-semibold text-muted mb-0 me-2">Status:</label>
-                <select id="assetStatusFilter" class="form-select form-select-sm" style="max-width: 200px;" onchange="loadAssetReportData()">
-                  <option value="">All Statuses</option>
-                  <option value="Assigned">Assigned</option>
-                  <option value="In Stock">In Stock</option>
-                  <option value="Under Repair">Under Repair</option>
-                  <option value="Retired">Retired</option>
-                  <option value="Refreshed">Refreshed</option>
-                </select>
+              <div class="d-flex align-items-center gap-3 flex-grow-1 flex-wrap">
+                <div class="d-flex align-items-center gap-2">
+                  <label for="assetStatusFilter" class="form-label small fw-semibold text-muted mb-0">Status:</label>
+                  <select id="assetStatusFilter" class="form-select form-select-sm" style="max-width: 170px;" onchange="loadAssetReportData()">
+                    <option value="">All Statuses</option>
+                    <option value="Assigned">Assigned</option>
+                    <option value="In Stock">In Stock</option>
+                    <option value="Under Repair">Under Repair</option>
+                    <option value="Retired">Retired</option>
+                    <option value="Refreshed">Refreshed</option>
+                  </select>
+                </div>
+
+                <div class="d-flex align-items-center gap-2">
+                  <label for="vendorFilter" class="form-label small fw-semibold text-muted mb-0">Vendor:</label>
+                  <select id="vendorFilter" class="form-select form-select-sm" style="max-width: 170px;" onchange="loadAssetReportData()">
+                    <option value="">All Vendors</option>
+                  </select>
+                </div>
               </div>
-              <button type="button" onclick="exportAssetsCSV()" class="btn btn-success btn-sm fw-semibold">
-                <i class="bi bi-download me-1"></i>Export Assets CSV
-              </button>
+
+              <div class="d-flex gap-2">
+                <button type="button" onclick="exportAssetsCSV()" class="btn btn-success btn-sm fw-semibold">
+                  <i class="bi bi-file-earmark-excel me-1"></i>Export Assets CSV
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Asset Overview Metrics -->
-        <div class="row g-3 mb-4">
+        <!-- Primary Inventory Status Overview -->
+        <div class="row g-3 mb-3">
           <div class="col-12 col-md-3">
             <div class="card border-0 shadow-sm p-3 metric-card" style="border-left-color: #0d6efd;">
               <div class="text-muted small fw-bold text-uppercase">Total Hardware Assets</div>
@@ -248,18 +260,49 @@
           </div>
         </div>
 
-        <!-- Asset Distribution Chart -->
+        <!-- Financial & Lifecycle Metrics Row -->
         <div class="row g-3 mb-4">
-          <div class="col-12 col-lg-6">
-            <div class="card border-0 shadow-sm p-3">
+          <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm p-3 metric-card" style="border-left-color: #6f42c1;">
+              <div class="text-muted small fw-bold text-uppercase">Portfolio Total Valuation</div>
+              <div class="h3 fw-bold text-dark mb-0 mt-1" id="assetValTotalCost">₦0.00</div>
+              <div class="small text-muted mt-1">Based on initial purchase price</div>
+            </div>
+          </div>
+          <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm p-3 metric-card" style="border-left-color: #20c997;">
+              <div class="text-muted small fw-bold text-uppercase">Estimated Book Value</div>
+              <div class="h3 fw-bold text-dark mb-0 mt-1" id="assetValDepreciated">₦0.00</div>
+              <div class="small text-muted mt-1">Straight-line (3-Yr Lifespan)</div>
+            </div>
+          </div>
+          <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm p-3 metric-card" style="border-left-color: #fd7e14;">
+              <div class="text-muted small fw-bold text-uppercase">Assets Due for Refresh</div>
+              <div class="h3 fw-bold text-warning mb-0 mt-1" id="assetValRefreshDue">0</div>
+              <div class="small text-muted mt-1">Aged over 3 years or near EOL</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Asset Distribution Charts -->
+        <div class="row g-3 mb-4">
+          <div class="col-12 col-lg-4">
+            <div class="card border-0 shadow-sm p-3 h-100">
               <h3 class="h6 fw-bold mb-3">Asset Status Breakdown</h3>
               <div class="chart-container"><canvas id="assetStatusChart"></canvas></div>
             </div>
           </div>
-          <div class="col-12 col-lg-6">
-            <div class="card border-0 shadow-sm p-3">
-              <h3 class="h6 fw-bold mb-3">Asset Categories</h3>
-              <div class="chart-container"><canvas id="assetCategoryChart"></canvas></div>
+          <div class="col-12 col-lg-4">
+            <div class="card border-0 shadow-sm p-3 h-100">
+              <h3 class="h6 fw-bold mb-3">Vendor Expenditure Share</h3>
+              <div class="chart-container"><canvas id="vendorSpendChart"></canvas></div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-4">
+            <div class="card border-0 shadow-sm p-3 h-100">
+              <h3 class="h6 fw-bold mb-3">Hardware Age Profile</h3>
+              <div class="chart-container"><canvas id="assetAgeChart"></canvas></div>
             </div>
           </div>
         </div>
@@ -267,21 +310,25 @@
         <!-- Hardware Inventory Table -->
         <div class="card border-0 shadow-sm">
           <div class="card-body p-3">
-            <h3 class="h6 fw-bold mb-3">Asset Inventory Report</h3>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h3 class="h6 fw-bold mb-0">Hardware Inventory & Financial Ledger</h3>
+              <span class="badge bg-light text-dark border" id="tableRecordCount">Showing 0 records</span>
+            </div>
             <div class="table-responsive">
               <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                   <tr>
                     <th>Asset Tag</th>
-                    <th>Category</th>
-                    <th>Model</th>
-                    <th>Serial Number</th>
+                    <th>Category & Model</th>
+                    <th>Vendor & Purchase Date</th>
+                    <th>Cost (₦)</th>
+                    <th>Assigned Custodian</th>
                     <th>Status</th>
-                    <th>Assigned To</th>
+                    <th>Audit Logs</th>
                   </tr>
                 </thead>
                 <tbody id="assetReportTableBody">
-                  <tr><td colspan="6" class="text-center py-4 text-muted">Loading asset inventory...</td></tr>
+                  <tr><td colspan="7" class="text-center py-4 text-muted">Loading asset inventory...</td></tr>
                 </tbody>
               </table>
             </div>
@@ -291,6 +338,26 @@
       </div>
     </div>
   </main>
+
+  <!-- Asset Audit Log Modal -->
+  <div class="modal fade" id="auditModal" tabindex="-1" aria-labelledby="auditModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header bg-dark text-white">
+          <h5 class="modal-title h6" id="auditModalLabel"><i class="bi bi-clock-history me-2"></i>Asset Audit History</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div id="auditModalContent">
+            <div class="text-center py-4 text-muted">Loading assignment history...</div>
+          </div>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary btn-sm fw-semibold" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Footer -->
   <footer class="footer mt-auto py-3 bg-white border-top text-center text-muted small">
@@ -305,23 +372,43 @@
     let statusChartInstance = null;
     let slaChartInstance = null;
     let assetStatusChartInstance = null;
-    let assetCategoryChartInstance = null;
+    let vendorSpendChartInstance = null;
+    let assetAgeChartInstance = null;
+    let auditModalInstance = null;
 
     document.addEventListener('DOMContentLoaded', async () => {
+      // Initialize Bootstrap Modals
+      auditModalInstance = new bootstrap.Modal(document.getElementById('auditModal'));
+
       // 1. Authenticate Access
-      const user = await protectPage(['admin', 'super_admin', 'superadmin', 'manager']);
+      const user = await protectPage(['admin', 'super_admin', 'superadmin', 'manager', 'asset_manager']);
       if (!user) return;
 
       // 2. Set User Banner
       const userInfoEl = document.getElementById('userInfo');
-      if (userInfoEl && user.name) {
-        userInfoEl.innerText = `${user.name} (${String(user.role || '').toUpperCase()})`;
+      if (userInfoEl) {
+        const displayName = user.name || user.full_name || user.email;
+        userInfoEl.innerText = `${displayName} (${String(user.role || '').toUpperCase()})`;
       }
 
       // 3. Load initial datasets
       await loadTicketReportData();
       await loadAssetReportData();
     });
+
+    // Helper function to format local dates safely as YYYY-MM-DD
+    function formatLocalDate(dateObj) {
+      const year = dateObj.getFullYear();
+      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const day = String(dateObj.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    // Currency Formatter for Naira (₦)
+    function formatCurrency(val) {
+      const num = parseFloat(val) || 0;
+      return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(num);
+    }
 
     // ================= HELPDESK DATA FUNCTIONS =================
     async function loadTicketReportData(queryParams = '') {
@@ -338,7 +425,7 @@
         
         document.getElementById('valTotal').innerText = data.summary?.total || 0;
         document.getElementById('valActive').innerText = (data.summary?.open || 0) + (data.summary?.inProgress || 0);
-        document.getElementById('valSlaRate').innerText = `${data.sla?.complianceRate || '100%'} `;
+        document.getElementById('valSlaRate').innerText = `${data.sla?.complianceRate || '100%'}`;
 
         renderTicketCharts(data);
         renderTicketTable(tickets);
@@ -402,13 +489,19 @@
       `).join('');
     }
 
-    // ================= ASSET MANAGEMENT DATA FUNCTIONS =================
+    // ================= ASSET & FINANCIAL DATA FUNCTIONS =================
     async function loadAssetReportData() {
       try {
         const selectedStatus = document.getElementById('assetStatusFilter').value;
-        
+        const selectedVendor = document.getElementById('vendorFilter').value;
+
+        let queryParams = [];
+        if (selectedStatus) queryParams.push(`status=${encodeURIComponent(selectedStatus)}`);
+        if (selectedVendor) queryParams.push(`vendor=${encodeURIComponent(selectedVendor)}`);
+        const queryString = queryParams.length ? `?${queryParams.join('&')}` : '';
+
         const [assetsRes, summaryRes] = await Promise.all([
-          authFetch(`/api/assets${selectedStatus ? `?status=${encodeURIComponent(selectedStatus)}` : ''}`),
+          authFetch(`/api/assets${queryString}`),
           authFetch('/api/assets/reports')
         ]);
 
@@ -416,20 +509,11 @@
 
         const assets = await assetsRes.json();
         
-        if (summaryRes && summaryRes.ok) {
-          const summaryData = await summaryRes.json();
-          const s = summaryData.summary || {};
-          
-          document.getElementById('assetValTotal').innerText = s.total_assets || 0;
-          document.getElementById('assetValInUse').innerText = s.assigned_count || 0;
-          document.getElementById('assetValAvailable').innerText = s.in_stock_count || 0;
-          document.getElementById('assetValRepair').innerText = s.in_repair_count || 0;
-        } else {
-          document.getElementById('assetValTotal').innerText = assets.length;
-          document.getElementById('assetValInUse').innerText = assets.filter(a => a.status === 'Assigned').length;
-          document.getElementById('assetValAvailable').innerText = assets.filter(a => a.status === 'In Stock').length;
-          document.getElementById('assetValRepair').innerText = assets.filter(a => a.status === 'Under Repair').length;
-        }
+        // Populate vendor filter dynamically if empty
+        populateVendorDropdown(assets);
+
+        // Compute local financial metrics
+        computeAndRenderAssetMetrics(assets, summaryRes && summaryRes.ok ? await summaryRes.json() : null);
 
         renderAssetCharts(assets);
         renderAssetTable(assets);
@@ -438,15 +522,70 @@
       }
     }
 
+    function populateVendorDropdown(assets) {
+      const vendorSelect = document.getElementById('vendorFilter');
+      const currentValue = vendorSelect.value;
+      
+      const vendors = new Set();
+      assets.forEach(a => { if (a.vendor) vendors.add(a.vendor); });
+
+      if (vendorSelect.options.length <= 1) {
+        vendors.forEach(v => {
+          const opt = document.createElement('option');
+          opt.value = v;
+          opt.textContent = v;
+          vendorSelect.appendChild(opt);
+        });
+        vendorSelect.value = currentValue;
+      }
+    }
+
+    function computeAndRenderAssetMetrics(assets, summaryData) {
+      const s = summaryData?.summary || {};
+      
+      document.getElementById('assetValTotal').innerText = s.total_assets || assets.length;
+      document.getElementById('assetValInUse').innerText = s.assigned_count || assets.filter(a => a.status === 'Assigned').length;
+      document.getElementById('assetValAvailable').innerText = s.in_stock_count || assets.filter(a => a.status === 'In Stock').length;
+      document.getElementById('assetValRepair').innerText = s.in_repair_count || assets.filter(a => a.status === 'Under Repair').length;
+
+      // Financial calculations
+      let totalCost = 0;
+      let totalDepreciated = 0;
+      let refreshCount = 0;
+
+      const now = new Date();
+
+      assets.forEach(a => {
+        const cost = parseFloat(a.purchase_price || a.cost || 0);
+        totalCost += cost;
+
+        if (a.purchase_date) {
+          const pDate = new Date(a.purchase_date);
+          const ageInYears = (now - pDate) / (1000 * 60 * 60 * 24 * 365.25);
+          
+          // 3-Year Straight Line Depreciation calculation
+          const depreciatedValue = Math.max(0, cost - (cost * (ageInYears / 3)));
+          totalDepreciated += depreciatedValue;
+
+          if (ageInYears >= 3) {
+            refreshCount++;
+          }
+        } else {
+          totalDepreciated += cost;
+        }
+      });
+
+      document.getElementById('assetValTotalCost').innerText = formatCurrency(totalCost);
+      document.getElementById('assetValDepreciated').innerText = formatCurrency(totalDepreciated);
+      document.getElementById('assetValRefreshDue').innerText = refreshCount;
+    }
+
     function renderAssetCharts(assets) {
       // 1. Status Breakdown
       const statusCounts = { 'Assigned': 0, 'In Stock': 0, 'Under Repair': 0, 'Retired': 0, 'Refreshed': 0 };
       assets.forEach(a => { 
-        if (statusCounts[a.status] !== undefined) {
-          statusCounts[a.status]++; 
-        } else {
-          statusCounts[a.status] = 1;
-        }
+        if (statusCounts[a.status] !== undefined) statusCounts[a.status]++; 
+        else statusCounts[a.status] = 1;
       });
 
       const ctxAssetStatus = document.getElementById('assetStatusChart').getContext('2d');
@@ -460,20 +599,51 @@
         options: { responsive: true, maintainAspectRatio: false }
       });
 
-      // 2. Category Breakdown
-      const categoryMap = {};
+      // 2. Vendor Spend Breakdown
+      const vendorSpendMap = {};
       assets.forEach(a => {
-        const cat = a.category || 'Uncategorized';
-        categoryMap[cat] = (categoryMap[cat] || 0) + 1;
+        const vendor = a.vendor || 'Unspecified';
+        const cost = parseFloat(a.purchase_price || a.cost || 0);
+        vendorSpendMap[vendor] = (vendorSpendMap[vendor] || 0) + cost;
       });
 
-      const ctxAssetCategory = document.getElementById('assetCategoryChart').getContext('2d');
-      if (assetCategoryChartInstance) assetCategoryChartInstance.destroy();
-      assetCategoryChartInstance = new Chart(ctxAssetCategory, {
+      const ctxVendorSpend = document.getElementById('vendorSpendChart').getContext('2d');
+      if (vendorSpendChartInstance) vendorSpendChartInstance.destroy();
+      vendorSpendChartInstance = new Chart(ctxVendorSpend, {
+        type: 'pie',
+        data: {
+          labels: Object.keys(vendorSpendMap),
+          datasets: [{ 
+            data: Object.values(vendorSpendMap), 
+            backgroundColor: ['#0d6efd', '#20c997', '#ffc107', '#fd7e14', '#6f42c1', '#adb5bd'] 
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+
+      // 3. Asset Age Profile
+      const ageGroups = { '< 1 Year': 0, '1-2 Years': 0, '2-3 Years': 0, '3+ Years (Refresh)': 0 };
+      const now = new Date();
+
+      assets.forEach(a => {
+        if (!a.purchase_date) {
+          ageGroups['< 1 Year']++;
+          return;
+        }
+        const ageYears = (now - new Date(a.purchase_date)) / (1000 * 60 * 60 * 24 * 365.25);
+        if (ageYears < 1) ageGroups['< 1 Year']++;
+        else if (ageYears < 2) ageGroups['1-2 Years']++;
+        else if (ageYears < 3) ageGroups['2-3 Years']++;
+        else ageGroups['3+ Years (Refresh)']++;
+      });
+
+      const ctxAssetAge = document.getElementById('assetAgeChart').getContext('2d');
+      if (assetAgeChartInstance) assetAgeChartInstance.destroy();
+      assetAgeChartInstance = new Chart(ctxAssetAge, {
         type: 'bar',
         data: {
-          labels: Object.keys(categoryMap),
-          datasets: [{ label: 'Asset Count', data: Object.values(categoryMap), backgroundColor: '#0d6efd' }]
+          labels: Object.keys(ageGroups),
+          datasets: [{ label: 'Asset Count', data: Object.values(ageGroups), backgroundColor: ['#198754', '#0dcaf0', '#ffc107', '#dc3545'] }]
         },
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
       });
@@ -481,21 +651,80 @@
 
     function renderAssetTable(assets) {
       const tbody = document.getElementById('assetReportTableBody');
+      document.getElementById('tableRecordCount').innerText = `Showing ${assets.length} records`;
+
       if (!assets || assets.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">No asset records found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">No hardware records match the selected filters.</td></tr>';
         return;
       }
 
       tbody.innerHTML = assets.map(a => `
         <tr>
           <td class="fw-bold text-primary">${a.asset_tag || a.id}</td>
-          <td>${a.category || 'N/A'}</td>
-          <td>${a.model || 'N/A'}</td>
-          <td><code>${a.serial_number || 'N/A'}</code></td>
-          <td><span class="badge ${a.status === 'Assigned' ? 'bg-success' : a.status === 'In Stock' ? 'bg-info text-dark' : 'bg-warning text-dark'}">${a.status}</span></td>
-          <td>${a.assigned_user_name || 'Unassigned'}</td>
+          <td>
+            <div class="fw-semibold">${a.category || 'N/A'}</div>
+            <div class="small text-muted">${a.model || ''}</div>
+          </td>
+          <td>
+            <div class="fw-semibold text-dark">${a.vendor || 'N/A'}</div>
+            <div class="small text-muted">${a.purchase_date ? new Date(a.purchase_date).toLocaleDateString() : 'N/A'}</div>
+          </td>
+          <td class="fw-bold">${formatCurrency(a.purchase_price || a.cost || 0)}</td>
+          <td>
+            <div class="fw-semibold">${a.assigned_user_name || a.assigned_to || 'Unassigned'}</div>
+            <div class="small text-muted">${a.user_department || a.department || 'N/A'}</div>
+          </td>
+          <td>
+            <span class="badge ${
+              a.status === 'Assigned' ? 'bg-success' : 
+              a.status === 'In Stock' ? 'bg-info text-dark' : 
+              a.status === 'Under Repair' ? 'bg-danger' : 'bg-secondary'
+            }">${a.status}</span>
+          </td>
+          <td>
+            <button type="button" class="btn btn-outline-dark btn-sm" onclick="viewAuditLogs('${a.id || a.asset_tag}')">
+              <i class="bi bi-clock-history me-1"></i>Logs
+            </button>
+          </td>
         </tr>
       `).join('');
+    }
+
+    // View Audit Trail for specific Asset
+    async function viewAuditLogs(assetId) {
+      const modalContent = document.getElementById('auditModalContent');
+      modalContent.innerHTML = '<div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Fetching audit history...</div>';
+      auditModalInstance.show();
+
+      try {
+        const res = await authFetch(`/api/assets/${assetId}/history`);
+        if (!res || !res.ok) throw new Error('Failed to load history');
+        
+        const logs = await res.json();
+        if (!logs || logs.length === 0) {
+          modalContent.innerHTML = '<div class="text-center py-4 text-muted">No historical audit records found for this asset.</div>';
+          return;
+        }
+
+        modalContent.innerHTML = `
+          <div class="timeline">
+            <ul class="list-group list-group-flush">
+              ${logs.map(log => `
+                <li class="list-group-item px-0">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <span class="fw-bold text-primary">${log.action || 'Update'}</span>
+                    <small class="text-muted">${log.created_at ? new Date(log.created_at).toLocaleString() : 'N/A'}</small>
+                  </div>
+                  <div class="small text-dark mt-1">${log.notes || log.details || 'No additional details provided.'}</div>
+                  <div class="small text-muted mt-1">Performed by: ${log.performed_by || 'System'}</div>
+                </li>
+              `).join('')}
+            </ul>
+          </div>
+        `;
+      } catch (err) {
+        modalContent.innerHTML = '<div class="text-center py-4 text-danger"><i class="bi bi-exclamation-triangle me-1"></i>Unable to load audit history.</div>';
+      }
     }
 
     // ================= FILTERS & EXPORT HANDLERS =================
@@ -508,15 +737,15 @@
     }
 
     function applyTicketPreset(days, btn) {
-      document.querySelectorAll('#ticketFilterForm .btn-group .btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('#ticketPresetGroup .btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
 
       const endDate = new Date();
       const startDate = new Date();
       startDate.setDate(endDate.getDate() - days);
 
-      const startStr = startDate.toISOString().split('T')[0];
-      const endStr = endDate.toISOString().split('T')[0];
+      const startStr = formatLocalDate(startDate);
+      const endStr = formatLocalDate(endDate);
 
       document.getElementById('startDate').value = startStr;
       document.getElementById('endDate').value = endStr;
@@ -524,7 +753,7 @@
     }
 
     function resetTicketFilters(btn) {
-      document.querySelectorAll('#ticketFilterForm .btn-group .btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('#ticketPresetGroup .btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       document.getElementById('startDate').value = '';
       document.getElementById('endDate').value = '';
@@ -541,8 +770,13 @@
 
     function exportAssetsCSV() {
       const status = document.getElementById('assetStatusFilter').value;
+      const vendor = document.getElementById('vendorFilter').value;
+      let queryParams = [];
+      if (status) queryParams.push(`status=${encodeURIComponent(status)}`);
+      if (vendor) queryParams.push(`vendor=${encodeURIComponent(vendor)}`);
+      
       let url = '/api/assets/export';
-      if (status) url += `?status=${encodeURIComponent(status)}`;
+      if (queryParams.length) url += `?${queryParams.join('&')}`;
       window.location.href = url;
     }
 

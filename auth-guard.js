@@ -1,18 +1,47 @@
 /**
  * Universal Auth Guard & Access Control Utilities
- * Supports both Express Node.js Server Middleware and Client-Side JS Guards.
+ * Supports Express Node.js Server Middleware & Browser Client Guards.
  */
 
 // ============================================================================
-// 1. EXPRESS SERVER-SIDE MIDDLEWARE
+// 1. HELPER FUNCTIONS
 // ============================================================================
 
 /**
- * Ensures the request is authenticated via session.
+ * Extracts and normalizes the user object from Express request context.
+ * Supports standard Express session structure, double-wrapped user objects, and req.user (JWTs).
+ */
+function extractUser(req) {
+  if (!req) return null;
+  const user = req.user || req.session?.user?.user || req.session?.user;
+  return (user && typeof user === 'object') ? user : null;
+}
+
+/**
+ * Normalizes boolean flags from DB (handles 1, "1", true, "true").
+ */
+function isTruthy(val) {
+  return val === true || val === 1 || val === '1' || String(val).toLowerCase() === 'true';
+}
+
+/**
+ * Helper to check standard admin roles.
+ */
+function isAdminRole(role) {
+  const normalized = String(role || '').trim().toLowerCase();
+  return ['admin', 'super_admin', 'superadmin'].includes(normalized);
+}
+
+// ============================================================================
+// 2. EXPRESS SERVER-SIDE MIDDLEWARE
+// ============================================================================
+
+/**
+ * Ensures the request is authenticated via session or populated request user.
  */
 function requireAuth(req, res, next) {
-  const sessionUser = req.session?.user?.user || req.session?.user;
-  if (!sessionUser || !sessionUser.id) {
+  const user = extractUser(req);
+  if (!user || (!user.id && !user._id)) {
     return res.status(401).json({ error: 'Unauthorized. Active session required.' });
   }
   next();
@@ -22,9 +51,8 @@ function requireAuth(req, res, next) {
  * Restricts access to Admin roles.
  */
 function requireAdmin(req, res, next) {
-  const user = req.session?.user?.user || req.session?.user;
-  const role = String(user?.role || '').trim().toLowerCase();
-  if (!['admin', 'super_admin', 'superadmin'].includes(role)) {
+  const user = extractUser(req);
+  if (!user || !isAdminRole(user.role)) {
     return res.status(403).json({ error: 'Forbidden. Administrator privileges required.' });
   }
   next();
@@ -34,21 +62,16 @@ function requireAdmin(req, res, next) {
  * Restricts access specifically to Admin or Super Admin roles.
  */
 function requireAdminOrSuper(req, res, next) {
-  const user = req.session?.user?.user || req.session?.user;
-  const role = String(user?.role || '').trim().toLowerCase();
-  if (!['admin', 'super_admin', 'superadmin'].includes(role)) {
-    return res.status(403).json({ error: 'Forbidden. Administrator privileges required.' });
-  }
-  next();
+  return requireAdmin(req, res, next);
 }
 
 /**
  * Restricts access to Managers or higher roles.
  */
 function requireManager(req, res, next) {
-  const user = req.session?.user?.user || req.session?.user;
+  const user = extractUser(req);
   const role = String(user?.role || '').trim().toLowerCase();
-  if (!['manager', 'admin', 'super_admin', 'superadmin'].includes(role)) {
+  if (!user || (!['manager'].includes(role) && !isAdminRole(role))) {
     return res.status(403).json({ error: 'Forbidden. Manager privileges required.' });
   }
   next();
@@ -58,9 +81,9 @@ function requireManager(req, res, next) {
  * Restricts access to Asset Managers or Admins.
  */
 function requireAssetManager(req, res, next) {
-  const user = req.session?.user?.user || req.session?.user;
+  const user = extractUser(req);
   const role = String(user?.role || '').trim().toLowerCase();
-  if (!['asset_manager', 'admin', 'super_admin', 'superadmin'].includes(role)) {
+  if (!user || (!['asset_manager'].includes(role) && !isAdminRole(role))) {
     return res.status(403).json({ error: 'Forbidden. Asset management privileges required.' });
   }
   next();
@@ -70,11 +93,12 @@ function requireAssetManager(req, res, next) {
  * Checks module-level access flag for Helpdesk.
  */
 function requireHelpdeskAccess(req, res, next) {
-  const user = req.session?.user?.user || req.session?.user;
-  const role = String(user?.role || '').trim().toLowerCase();
-  const isSuperOrAdmin = ['admin', 'super_admin', 'superadmin'].includes(role);
+  const user = extractUser(req);
+  if (!user) {
+    return res.status(401).json({ error: 'Unauthorized. Active session required.' });
+  }
 
-  if (isSuperOrAdmin || user?.access_helpdesk === 1 || user?.access_helpdesk === true) {
+  if (isAdminRole(user.role) || isTruthy(user.access_helpdesk)) {
     return next();
   }
   return res.status(403).json({ error: 'Forbidden. Helpdesk module access disabled.' });
@@ -84,24 +108,26 @@ function requireHelpdeskAccess(req, res, next) {
  * Checks module-level access flag for Assets.
  */
 function requireAssetAccess(req, res, next) {
-  const user = req.session?.user?.user || req.session?.user;
-  const role = String(user?.role || '').trim().toLowerCase();
-  const isSuperOrAdmin = ['admin', 'super_admin', 'superadmin'].includes(role);
+  const user = extractUser(req);
+  if (!user) {
+    return res.status(401).json({ error: 'Unauthorized. Active session required.' });
+  }
 
-  if (isSuperOrAdmin || user?.access_assets === 1 || user?.access_assets === true) {
+  if (isAdminRole(user.role) || isTruthy(user.access_assets)) {
     return next();
   }
   return res.status(403).json({ error: 'Forbidden. Asset management module access disabled.' });
 }
 
 // ============================================================================
-// 2. CLIENT-SIDE BROWSER UTILITIES
+// 3. CLIENT-SIDE BROWSER UTILITIES
 // ============================================================================
 
 async function protectPage(allowedRoles = []) {
   try {
     const headers = { 'Accept': 'application/json' };
     const token = typeof localStorage !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('jwt')) : null;
+    
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
@@ -143,38 +169,43 @@ async function protectPage(allowedRoles = []) {
 }
 
 async function authFetch(url, options = {}) {
-  const token = typeof localStorage !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('jwt')) : null;
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(options.headers || {})
-  };
+  try {
+    const token = typeof localStorage !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('jwt')) : null;
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(options.headers || {})
+    };
 
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  const response = await fetch(url, { ...options, headers, credentials: 'same-origin' });
-
-  if (response.status === 401) {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.removeItem('token');
-      localStorage.removeItem('jwt');
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
-    const currentPath = encodeURIComponent(window.location.pathname + window.location.search);
-    window.location.href = `/login.html?redirect=${currentPath}`;
-    return null;
-  }
 
-  return response;
+    const response = await fetch(url, { ...options, headers, credentials: 'same-origin' });
+
+    if (response.status === 401) {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('token');
+        localStorage.removeItem('jwt');
+      }
+      const currentPath = encodeURIComponent(window.location.pathname + window.location.search);
+      window.location.href = `/login.html?redirect=${currentPath}`;
+      return null;
+    }
+
+    return response;
+  } catch (err) {
+    console.error('Network or Request Error during authFetch:', err);
+    throw err;
+  }
 }
 
-// Attach functions to the global window object if running in browser context
+// Global Browser Export
 if (typeof window !== 'undefined') {
   window.protectPage = protectPage;
   window.authFetch = authFetch;
 }
 
-// Export CommonJS modules for server-side Express context
+// CommonJS Node.js Export
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     requireAuth,

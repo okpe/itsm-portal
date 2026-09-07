@@ -21,6 +21,18 @@ const {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Helper function to sanitize CSV fields against Formula Injection
+const sanitizeCsvField = (val) => {
+  let str = (val || '').toString();
+  // Escape double quotes
+  str = str.replace(/"/g, '""');
+  // Prevent CSV formula execution in Excel/Sheets
+  if (/^[=+\-@\t\r]/.test(str)) {
+    str = `'` + str;
+  }
+  return `"${str}"`;
+};
+
 // Body parser middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -58,8 +70,10 @@ app.get('/', (req, res) => {
   res.redirect('/login.html');
 });
 
-// Utility Diagnostic / Admin Recovery Endpoints
-app.get('/api/nuke-session', (req, res) => {
+// ================= SECURED DIAGNOSTIC / ADMIN ENDPOINTS =================
+
+// Secured session nuke (Requires active login)
+app.get('/api/nuke-session', requireAuth, (req, res) => {
   if (req.session) {
     req.session.destroy(() => {
       res.clearCookie('connect.sid');
@@ -70,7 +84,13 @@ app.get('/api/nuke-session', (req, res) => {
   }
 });
 
-app.get('/api/fix-my-role', async (req, res) => {
+// Strictly protected behind Super Admin access
+app.get('/api/fix-my-role', requireAuth, requireAdminOrSuper, async (req, res) => {
+  const sessionRole = String(req.session.user.role || '').toLowerCase();
+  if (sessionRole !== 'super_admin') {
+    return res.status(403).send('Only active Super Admins can invoke emergency role repair.');
+  }
+
   try {
     await db.runAsync("UPDATE users SET role = 'super_admin', access_helpdesk = 1, access_assets = 1 WHERE email = 'superadmin@helpdesk.local'");
     
@@ -113,6 +133,8 @@ const loginHandler = async (req, res) => {
       id: user.id,
       name: user.name,
       email: user.email,
+      subsidiary: user.subsidiary || null,
+      department: user.department || null,
       role: normalizedRole,
       access_helpdesk: isSuperOrAdmin ? 1 : (user.access_helpdesk ?? 1),
       access_assets: isSuperOrAdmin ? 1 : (user.access_assets ?? 0)
@@ -143,7 +165,7 @@ app.get('/api/auth/me', requireAuth, async (req, res) => {
     }
 
     const user = await db.getAsync(
-      'SELECT id, name, email, role, access_helpdesk, access_assets FROM users WHERE id = ?',
+      'SELECT id, name, email, subsidiary, department, role, access_helpdesk, access_assets FROM users WHERE id = ?',
       [userId]
     );
 
@@ -159,6 +181,8 @@ app.get('/api/auth/me', requireAuth, async (req, res) => {
       id: user.id,
       name: user.name,
       email: user.email,
+      subsidiary: user.subsidiary || null,
+      department: user.department || null,
       role: normalizedRole,
       access_helpdesk: isSuperOrAdmin ? 1 : (user.access_helpdesk ?? 1),
       access_assets: isSuperOrAdmin ? 1 : (user.access_assets ?? 0)
@@ -174,6 +198,8 @@ app.get('/api/auth/me', requireAuth, async (req, res) => {
         id: req.session.user.id,
         name: req.session.user.name,
         email: req.session.user.email,
+        subsidiary: req.session.user.subsidiary,
+        department: req.session.user.department,
         role: req.session.user.role,
         access_helpdesk: req.session.user.access_helpdesk,
         access_assets: req.session.user.access_assets,
@@ -205,7 +231,13 @@ app.all('/api/auth/logout', (req, res) => {
 
 app.get('/api/admin/users', requireAuth, requireAdminOrSuper, async (req, res) => {
   try {
-    const rows = await db.getUsers();
+    const rows = await db.allAsync(`
+      SELECT u.id, u.name, u.email, u.subsidiary, u.department, u.role, u.manager_id, 
+             u.access_helpdesk, u.access_assets, u.created_at, m.name as manager_name
+      FROM users u
+      LEFT JOIN users m ON u.manager_id = m.id
+      ORDER BY u.id DESC
+    `);
     res.json(rows || []);
   } catch (err) {
     console.error('[!] Error fetching admin users:', err);
@@ -246,7 +278,7 @@ app.get('/api/admin/assets', requireAuth, requireAdminOrSuper, async (req, res) 
 app.get('/api/admin/users/:id', requireAuth, requireAdminOrSuper, async (req, res) => {
   try {
     const user = await db.getAsync(
-      'SELECT id, name, email, role, manager_id, access_helpdesk, access_assets, created_at FROM users WHERE id = ?',
+      'SELECT id, name, email, subsidiary, department, role, manager_id, access_helpdesk, access_assets, created_at FROM users WHERE id = ?',
       [req.params.id]
     );
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -266,7 +298,7 @@ app.get('/api/admin/managers', requireAuth, requireAdminOrSuper, async (req, res
 });
 
 app.post('/api/admin/users', requireAuth, requireAdminOrSuper, async (req, res) => {
-  const { name, email, password, role, manager_id, access_helpdesk, access_assets } = req.body;
+  const { name, email, password, subsidiary, department, role, manager_id, access_helpdesk, access_assets } = req.body;
 
   if (!name || !email || !password || !role) {
     return res.status(400).json({ error: 'Name, email, password, and role are required' });
@@ -294,8 +326,9 @@ app.post('/api/admin/users', requireAuth, requireAdminOrSuper, async (req, res) 
     const allowAssets = (access_assets === true || access_assets === 1 || access_assets === '1') ? 1 : 0;
 
     const result = await db.runAsync(
-      `INSERT INTO users (name, email, password, role, manager_id, access_helpdesk, access_assets) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [name, email.toLowerCase().trim(), hashedPassword, newRole, mId, allowHelpdesk, allowAssets]
+      `INSERT INTO users (name, email, password, subsidiary, department, role, manager_id, access_helpdesk, access_assets) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [name, email.toLowerCase().trim(), hashedPassword, subsidiary || null, department || null, newRole, mId, allowHelpdesk, allowAssets]
     );
 
     res.status(201).json({ message: 'User created successfully', userId: result.id });
@@ -308,7 +341,7 @@ app.post('/api/admin/users', requireAuth, requireAdminOrSuper, async (req, res) 
 
 app.put('/api/admin/users/:id', requireAuth, requireAdminOrSuper, async (req, res) => {
   const userId = req.params.id;
-  const { name, email, role, manager_id, access_helpdesk, access_assets } = req.body;
+  const { name, email, subsidiary, department, role, manager_id, access_helpdesk, access_assets, password } = req.body;
 
   try {
     const targetUser = await db.getAsync('SELECT role FROM users WHERE id = ?', [userId]);
@@ -325,8 +358,8 @@ app.put('/api/admin/users/:id', requireAuth, requireAdminOrSuper, async (req, re
       return res.status(403).json({ error: 'Super Administrator accounts are protected and cannot be edited' });
     }
 
-    if ((newRole === 'super_admin' || newRole === 'admin') && sessionRole !== 'super_admin') {
-      return res.status(403).json({ error: 'Only Super Admins can assign Administrative roles' });
+    if ((newRole === 'super_admin' || newRole === 'admin' || targetRole === 'admin') && sessionRole !== 'super_admin') {
+      return res.status(403).json({ error: 'Only Super Admins can manage or assign Administrative roles' });
     }
 
     if (!name || !email || !role) {
@@ -341,10 +374,22 @@ app.put('/api/admin/users/:id', requireAuth, requireAdminOrSuper, async (req, re
     const allowHelpdesk = (access_helpdesk === true || access_helpdesk === 1 || access_helpdesk === '1') ? 1 : 0;
     const allowAssets = (access_assets === true || access_assets === 1 || access_assets === '1') ? 1 : 0;
 
-    await db.runAsync(
-      `UPDATE users SET name = ?, email = ?, role = ?, manager_id = ?, access_helpdesk = ?, access_assets = ? WHERE id = ?`,
-      [name, email.toLowerCase().trim(), newRole, mId, allowHelpdesk, allowAssets, userId]
-    );
+    if (password && password.trim() !== '') {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      await db.runAsync(
+        `UPDATE users 
+         SET name = ?, email = ?, password = ?, subsidiary = ?, department = ?, role = ?, manager_id = ?, access_helpdesk = ?, access_assets = ? 
+         WHERE id = ?`,
+        [name, email.toLowerCase().trim(), hashedPassword, subsidiary || null, department || null, newRole, mId, allowHelpdesk, allowAssets, userId]
+      );
+    } else {
+      await db.runAsync(
+        `UPDATE users 
+         SET name = ?, email = ?, subsidiary = ?, department = ?, role = ?, manager_id = ?, access_helpdesk = ?, access_assets = ? 
+         WHERE id = ?`,
+        [name, email.toLowerCase().trim(), subsidiary || null, department || null, newRole, mId, allowHelpdesk, allowAssets, userId]
+      );
+    }
 
     res.json({ message: 'User and permissions updated successfully' });
   } catch (error) {
@@ -386,12 +431,16 @@ app.delete('/api/admin/users/:id', requireAuth, requireAdminOrSuper, async (req,
 // ================= TICKET ROUTES =================
 
 app.post('/api/tickets', requireAuth, requireHelpdeskAccess, async (req, res) => {
-  const { title, description, category, priority, ticket_type } = req.body;
+  const { title, description, category, priority, ticket_type, subsidiary, department } = req.body;
   const userId = req.session.user.id;
 
   if (!title || !description) {
     return res.status(400).json({ error: 'Title and description are required' });
   }
+
+  // Fall back to session user values if not provided in request body
+  const finalSubsidiary = subsidiary || req.session.user.subsidiary || null;
+  const finalDepartment = department || req.session.user.department || null;
 
   let selectedType = ticket_type || 'Incident';
   if (selectedType.includes('Incident')) selectedType = 'Incident';
@@ -405,13 +454,17 @@ app.post('/api/tickets', requireAuth, requireHelpdeskAccess, async (req, res) =>
 
   try {
     const insertQuery = `
-      INSERT INTO tickets (ticket_type, title, description, category, priority, status, requester_id, created_at, updated_at, sla_target_resolution)
-      VALUES (?, ?, ?, ?, ?, 'Open', ?, ?, ?, ?)
+      INSERT INTO tickets (
+        ticket_type, title, description, category, priority, status, 
+        requester_id, subsidiary, department, created_at, updated_at, sla_target_resolution
+      )
+      VALUES (?, ?, ?, ?, ?, 'Open', ?, ?, ?, ?, ?, ?)
     `;
 
     const result = await db.runAsync(insertQuery, [
       selectedType, title, description, category || 'General Support',
-      priority || 'Medium', userId, now.toISOString(), now.toISOString(), slaTargetResolution
+      priority || 'Medium', userId, finalSubsidiary, finalDepartment,
+      now.toISOString(), now.toISOString(), slaTargetResolution
     ]);
 
     const ticketId = result.id;
@@ -454,7 +507,7 @@ app.get('/api/tickets/:id', requireAuth, requireHelpdeskAccess, async (req, res)
 
   try {
     const ticket = await db.getAsync(
-      `SELECT t.*, u.name as requester_name, u.email as requester_email 
+      `SELECT t.*, u.name as requester_name, u.email as requester_email, u.manager_id as requester_manager_id 
        FROM tickets t JOIN users u ON t.requester_id = u.id WHERE t.id = ?`,
       [ticketId]
     );
@@ -464,8 +517,11 @@ app.get('/api/tickets/:id', requireAuth, requireHelpdeskAccess, async (req, res)
     }
 
     const userRole = String(user.role || '').toLowerCase();
-    const isStaff = ['admin', 'super_admin', 'superadmin', 'manager'].includes(userRole);
-    if (!isStaff && ticket.requester_id !== user.id) {
+    const isAdmin = ['admin', 'super_admin', 'superadmin'].includes(userRole);
+    const isOwner = ticket.requester_id === user.id;
+    const isDirectManager = userRole === 'manager' && ticket.requester_manager_id === user.id;
+
+    if (!isAdmin && !isOwner && !isDirectManager) {
       return res.status(403).json({ error: 'Access denied to this ticket' });
     }
 
@@ -663,7 +719,7 @@ app.get('/api/assets', requireAuth, requireAssetManager, requireAssetAccess, asy
   }
 });
 
-// SHARED CSV EXPORT LOGIC
+// SHARED CSV EXPORT LOGIC WITH FORMULA INJECTION PREVENTION
 const assetExportHandler = async (req, res) => {
   const { status, category } = req.query;
   let conditions = [];
@@ -691,12 +747,11 @@ const assetExportHandler = async (req, res) => {
     let csv = 'Asset Tag,Category,Model,Serial Number,Status,Cost,Salvage Value,PO Number,Vendor,Location,Assigned To (Name),Assigned To (Email),Purchase Date,Warranty Expiry,Last Repair Date,Refreshed At,Created At\n';
 
     rows.forEach((r) => {
-      const escape = (str) => `"${(str || '').toString().replace(/"/g, '""')}"`;
       csv += [
-        escape(r.asset_tag), escape(r.category), escape(r.model), escape(r.serial_number),
-        escape(r.status), escape(r.cost), escape(r.salvage_value), escape(r.po_number), escape(r.vendor),
-        escape(r.location), escape(r.assigned_user_name), escape(r.assigned_user_email),
-        escape(r.purchase_date), escape(r.warranty_expiry), escape(r.last_repair_date), escape(r.refreshed_at), escape(r.created_at)
+        sanitizeCsvField(r.asset_tag), sanitizeCsvField(r.category), sanitizeCsvField(r.model), sanitizeCsvField(r.serial_number),
+        sanitizeCsvField(r.status), sanitizeCsvField(r.cost), sanitizeCsvField(r.salvage_value), sanitizeCsvField(r.po_number), sanitizeCsvField(r.vendor),
+        sanitizeCsvField(r.location), sanitizeCsvField(r.assigned_user_name), sanitizeCsvField(r.assigned_user_email),
+        sanitizeCsvField(r.purchase_date), sanitizeCsvField(r.warranty_expiry), sanitizeCsvField(r.last_repair_date), sanitizeCsvField(r.refreshed_at), sanitizeCsvField(r.created_at)
       ].join(',') + '\n';
     });
 
@@ -978,13 +1033,12 @@ app.get('/api/admin/reports/export', requireAuth, requireAdminOrSuper, async (re
     let csvString = 'Ticket Ref,Type,Title,Category,Priority,Status,Requester Name,Requester Email,SLA Status,Created At,Resolved At,Closed At\n';
 
     rows.forEach((r) => {
-      const escapeCsv = (str) => `"${(str || '').toString().replace(/"/g, '""')}"`;
       csvString += [
-        escapeCsv(r.ticket_number), escapeCsv(r.ticket_type), escapeCsv(r.title),
-        escapeCsv(r.category), escapeCsv(r.priority), escapeCsv(r.status),
-        escapeCsv(r.requester_name), escapeCsv(r.requester_email),
-        escapeCsv(r.sla_resolution_status), escapeCsv(r.created_at),
-        escapeCsv(r.resolved_at), escapeCsv(r.closed_at)
+        sanitizeCsvField(r.ticket_number), sanitizeCsvField(r.ticket_type), sanitizeCsvField(r.title),
+        sanitizeCsvField(r.category), sanitizeCsvField(r.priority), sanitizeCsvField(r.status),
+        sanitizeCsvField(r.requester_name), sanitizeCsvField(r.requester_email),
+        sanitizeCsvField(r.sla_resolution_status), sanitizeCsvField(r.created_at),
+        sanitizeCsvField(r.resolved_at), sanitizeCsvField(r.closed_at)
       ].join(',') + '\n';
     });
 
@@ -1005,7 +1059,7 @@ cron.schedule('0 * * * *', async () => {
        SET sla_resolution_status = 'Breached', updated_at = CURRENT_TIMESTAMP
        WHERE status IN ('Open', 'Approved', 'In Progress') 
          AND sla_target_resolution IS NOT NULL 
-         AND sla_target_resolution < ? 
+         AND datetime(sla_target_resolution) < datetime(?) 
          AND sla_resolution_status = 'Pending'`,
       [nowIso]
     );

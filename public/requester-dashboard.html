@@ -112,6 +112,7 @@
     .badge-resolved { background: #d4edda; color: #155724; }
     .badge-closed { background: #e2e3e5; color: #383d41; }
     .badge-rejected { background: #f8d7da; color: #721c24; }
+    .badge-reopened { background: #ffeeba; color: #856404; }
     .ticket-ref { font-family: monospace; font-size: 0.95rem; font-weight: 700; color: var(--primary); }
 
     /* Action Buttons */
@@ -159,7 +160,7 @@
         <div class="stat-value" id="countOpen">0</div>
       </div>
       <div class="stat-card in-progress">
-        <div class="stat-label">In Progress</div>
+        <div class="stat-label">In Progress / Approved</div>
         <div class="stat-value" id="countInProgress">0</div>
       </div>
       <div class="stat-card resolved">
@@ -192,6 +193,7 @@
             <option value="Resolved">Resolved</option>
             <option value="Closed">Closed</option>
             <option value="Rejected">Rejected</option>
+            <option value="Reopened">Reopened</option>
           </select>
         </div>
       </div>
@@ -309,10 +311,10 @@
       let open = 0, inProg = 0, resolved = 0, closed = 0;
       rawTicketsList.forEach(t => {
         const status = (t.status || '').toLowerCase();
-        if (status === 'open') open++;
+        if (status === 'open' || status === 'reopened') open++;
         else if (status === 'in progress' || status === 'in_progress' || status === 'approved') inProg++;
         else if (status === 'resolved') resolved++;
-        else if (status === 'closed') closed++;
+        else if (status === 'closed' || status === 'rejected') closed++;
       });
 
       document.getElementById('countOpen').textContent = open;
@@ -485,8 +487,12 @@
       if (!selectedTicketForReopen) return;
 
       const reason = document.getElementById('reopenReasonInput').value.trim();
-      const submitBtn = document.getElementById('submitReopenBtn');
+      if (!reason) {
+        alert('Please explain why the resolution was incomplete.');
+        return;
+      }
 
+      const submitBtn = document.getElementById('submitReopenBtn');
       submitBtn.disabled = true;
       submitBtn.textContent = 'Processing...';
 

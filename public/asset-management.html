@@ -36,6 +36,21 @@
     .badge-status-instock { background-color: #198754; color: #fff; }
     .badge-status-underrepair { background-color: #ffc107; color: #000; }
     .badge-status-retired { background-color: #6c757d; color: #fff; }
+
+    /* Timeline styling for enterprise history view */
+    .timeline { border-left: 2px solid #e9ecef; padding-left: 20px; position: relative; list-style: none; }
+    .timeline-item { position: relative; margin-bottom: 20px; }
+    .timeline-item::before {
+      content: "";
+      position: absolute;
+      left: -27px;
+      top: 4px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background-color: #0d6efd;
+      border: 2px solid #fff;
+    }
   </style>
 </head>
 <body class="d-flex flex-column min-vh-100">
@@ -149,9 +164,9 @@
     </div>
   </footer>
 
-  <!-- Asset Form Modal -->
+  <!-- Asset Edit/Create Form Modal -->
   <div class="modal fade" id="assetModal" tabindex="-1" aria-labelledby="modalTitle" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
       <div class="modal-content border-0 shadow">
         <div class="modal-header">
           <h2 class="modal-title h5 mb-0" id="modalTitle">Add Hardware Asset</h2>
@@ -160,43 +175,60 @@
         <form id="assetForm" class="needs-validation" novalidate>
           <div class="modal-body">
             <input type="hidden" id="assetId" name="assetId">
-            <div class="mb-3">
-              <label for="assetTag" class="form-label fw-semibold">Asset Tag <span class="text-danger">*</span></label>
-              <input type="text" id="assetTag" name="assetTag" class="form-control" placeholder="AST-10029" required>
-            </div>
-            <div class="mb-3">
-              <label for="category" class="form-label fw-semibold">Category <span class="text-danger">*</span></label>
-              <select id="category" name="category" class="form-select" required>
-                <option value="" disabled selected>Select a category...</option>
-                <option value="Laptop">Laptop</option>
-                <option value="Desktop">Desktop</option>
-                <option value="Monitor">Monitor</option>
-                <option value="Mobile/Tablet">Mobile/Tablet</option>
-                <option value="Server/Network">Server/Network</option>
-              </select>
-            </div>
-            <div class="mb-3">
-              <label for="model" class="form-label fw-semibold">Model <span class="text-danger">*</span></label>
-              <input type="text" id="model" name="model" class="form-control" placeholder="MacBook Pro 16 / Dell XPS 15" required>
-            </div>
-            <div class="mb-3">
-              <label for="serialNumber" class="form-label fw-semibold">Serial Number</label>
-              <input type="text" id="serialNumber" name="serialNumber" class="form-control" placeholder="Optional">
-            </div>
-            <div class="mb-3">
-              <label for="status" class="form-label fw-semibold">Status <span class="text-danger">*</span></label>
-              <select id="status" name="status" class="form-select" required>
-                <option value="In Stock">In Stock</option>
-                <option value="Assigned">Assigned</option>
-                <option value="Under Repair">Under Repair</option>
-                <option value="Retired">Retired</option>
-              </select>
-            </div>
-            <div class="mb-3">
-              <label for="assignedTo" class="form-label fw-semibold">Assign to User</label>
-              <select id="assignedTo" name="assignedTo" class="form-select">
-                <option value="">-- Unassigned --</option>
-              </select>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label for="assetTag" class="form-label fw-semibold">Asset Tag <span class="text-danger">*</span></label>
+                <input type="text" id="assetTag" name="assetTag" class="form-control" placeholder="AST-10029" required>
+              </div>
+              <div class="col-md-6">
+                <label for="category" class="form-label fw-semibold">Category <span class="text-danger">*</span></label>
+                <select id="category" name="category" class="form-select" required>
+                  <option value="" disabled selected>Select a category...</option>
+                  <option value="Laptop">Laptop</option>
+                  <option value="Desktop">Desktop</option>
+                  <option value="Monitor">Monitor</option>
+                  <option value="Mobile/Tablet">Mobile/Tablet</option>
+                  <option value="Server/Network">Server/Network</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label for="model" class="form-label fw-semibold">Model <span class="text-danger">*</span></label>
+                <input type="text" id="model" name="model" class="form-control" placeholder="MacBook Pro 16 / Dell XPS 15" required>
+              </div>
+              <div class="col-md-6">
+                <label for="serialNumber" class="form-label fw-semibold">Serial Number</label>
+                <input type="text" id="serialNumber" name="serialNumber" class="form-control" placeholder="Optional">
+              </div>
+
+              <!-- Enterprise Purchase Details -->
+              <div class="col-md-4">
+               <label for="purchasePrice" class="form-label fw-semibold">Purchase Price (₦)</label>
+                <input type="number" step="0.01" id="purchasePrice" name="purchasePrice" class="form-control" placeholder="1299.99">
+              </div>
+              <div class="col-md-4">
+                <label for="purchaseDate" class="form-label fw-semibold">Purchase Date</label>
+                <input type="date" id="purchaseDate" name="purchaseDate" class="form-control">
+              </div>
+              <div class="col-md-4">
+                <label for="vendor" class="form-label fw-semibold">Vendor</label>
+                <input type="text" id="vendor" name="vendor" class="form-control" placeholder="CDW / Apple Direct">
+              </div>
+
+              <div class="col-md-6">
+                <label for="status" class="form-label fw-semibold">Status <span class="text-danger">*</span></label>
+                <select id="status" name="status" class="form-select" required>
+                  <option value="In Stock">In Stock</option>
+                  <option value="Assigned">Assigned</option>
+                  <option value="Under Repair">Under Repair</option>
+                  <option value="Retired">Retired</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label for="assignedTo" class="form-label fw-semibold">Assign to User</label>
+                <select id="assignedTo" name="assignedTo" class="form-select">
+                  <option value="">-- Unassigned --</option>
+                </select>
+              </div>
             </div>
           </div>
           <div class="modal-footer bg-light">
@@ -211,14 +243,82 @@
     </div>
   </div>
 
+  <!-- Enterprise Asset History & Details Modal -->
+  <div class="modal fade" id="assetHistoryModal" tabindex="-1" aria-labelledby="assetHistoryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header bg-light">
+          <div>
+            <h5 class="modal-title fw-bold" id="assetHistoryModalLabel">Asset Details & Audit Trail</h5>
+            <span class="text-muted small" id="historyAssetTag">--</span>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="row g-4">
+            <!-- Asset Information Overview -->
+            <div class="col-md-5 border-end">
+              <h6 class="fw-bold mb-3 text-primary"><i class="bi bi-info-circle me-1"></i>Hardware Metadata</h6>
+              <table class="table table-sm table-borderless">
+                <tbody>
+                  <tr><th class="text-muted w-40">Model:</th><td id="detailModel" class="fw-semibold">--</td></tr>
+                  <tr><th class="text-muted">Category:</th><td id="detailCategory">--</td></tr>
+                  <tr><th class="text-muted">Serial Number:</th><td id="detailSerial">--</td></tr>
+                  <tr><th class="text-muted">Current Status:</th><td id="detailStatus">--</td></tr>
+                  <tr><th class="text-muted">Assigned User:</th><td id="detailUser">--</td></tr>
+                </tbody>
+              </table>
+
+              <hr class="my-3">
+
+              <h6 class="fw-bold mb-3 text-primary"><i class="bi bi-receipt me-1"></i>Financial & Vendor Info</h6>
+              <table class="table table-sm table-borderless">
+                <tbody>
+                  <tr><th class="text-muted w-40">Purchase Date:</th><td id="detailPurchaseDate">--</td></tr>
+                  <tr><th class="text-muted">Purchase Cost:</th><td id="detailPurchasePrice" class="fw-bold text-success">--</td></tr>
+                  <tr><th class="text-muted">Vendor:</th><td id="detailVendor">--</td></tr>
+                </tbody>
+              </table>
+
+              <!-- Action Management Box -->
+              <div class="bg-light p-3 rounded border mt-3">
+                <span class="fw-semibold d-block mb-2 text-dark">Quick Asset Lifecycle Actions</span>
+                <div class="d-flex gap-2">
+                  <button type="button" class="btn btn-sm btn-outline-success w-100" id="btnReturnStock">
+                    <i class="bi bi-box-arrow-in-down me-1"></i>Return to Stock
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-primary w-100" id="btnQuickReassign">
+                    <i class="bi bi-person-gear me-1"></i>Reassign
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Historical Audit Log -->
+            <div class="col-md-7">
+              <h6 class="fw-bold mb-3 text-primary"><i class="bi bi-clock-history me-1"></i>Chain of Custody & Activity History</h6>
+              <div id="historyTimelineContainer" style="max-height: 380px; overflow-y: auto;">
+                <ul class="timeline" id="historyTimeline">
+                  <!-- Dynamic History Data inserted here -->
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <!-- Authentication Guard Script -->
   <script src="/auth-guard.js"></script>
 
   <script>
     let assetModalInstance;
+    let assetHistoryModalInstance;
     let rawAssets = [];
     let globalAssetsMap = new Map();
+    let currentSelectedAssetId = null;
     
     const state = { currentPage: 1, itemsPerPage: 10, searchQuery: '', statusFilter: '' };
 
@@ -271,10 +371,36 @@
 
       // 3. Initialize Modals and Listeners
       assetModalInstance = new bootstrap.Modal(document.getElementById('assetModal'));
+      assetHistoryModalInstance = new bootstrap.Modal(document.getElementById('assetHistoryModal'));
       
       document.getElementById('openAddModalBtn').addEventListener('click', resetAndOpenModal);
       document.getElementById('logoutBtn').addEventListener('click', handleLogout);
       document.getElementById('assetForm').addEventListener('submit', handleFormSubmit);
+
+      // Enterprise Action Buttons inside History Modal
+      document.getElementById('btnReturnStock').addEventListener('click', handleReturnToStock);
+      document.getElementById('btnQuickReassign').addEventListener('click', () => {
+        assetHistoryModalInstance.hide();
+        openEditModal(currentSelectedAssetId);
+      });
+
+      // Form field sync handlers
+      const modalStatusSelect = document.getElementById('status');
+      const modalAssignedToSelect = document.getElementById('assignedTo');
+
+      modalStatusSelect.addEventListener('change', (e) => {
+        if (e.target.value !== 'Assigned') {
+          modalAssignedToSelect.value = '';
+        }
+      });
+
+      modalAssignedToSelect.addEventListener('change', (e) => {
+        if (e.target.value) {
+          modalStatusSelect.value = 'Assigned';
+        } else if (modalStatusSelect.value === 'Assigned') {
+          modalStatusSelect.value = 'In Stock';
+        }
+      });
 
       const searchInput = document.getElementById('searchInput');
       const statusFilter = document.getElementById('statusFilter');
@@ -293,8 +419,11 @@
 
       document.getElementById('assetTableBody').addEventListener('click', (e) => {
         const editBtn = e.target.closest('.edit-asset-btn');
+        const viewHistoryBtn = e.target.closest('.view-history-btn');
         if (editBtn) {
           openEditModal(editBtn.getAttribute('data-id'));
+        } else if (viewHistoryBtn) {
+          openHistoryModal(viewHistoryBtn.getAttribute('data-id'));
         }
       });
 
@@ -370,6 +499,9 @@
             <td>${getStatusBadge(a.status)}</td>
             <td>${a.assigned_user_name ? `${escapeHTML(a.assigned_user_name)}` : '<span class="text-muted">Unassigned</span>'}</td>
             <td class="text-end pe-3">
+              <button type="button" class="btn btn-sm btn-outline-secondary me-1 view-history-btn" data-id="${a.id}">
+                <i class="bi bi-clock-history me-1"></i>History
+              </button>
               <button type="button" class="btn btn-sm btn-outline-primary edit-asset-btn" data-id="${a.id}">
                 <i class="bi bi-pencil me-1"></i>Edit
               </button>
@@ -413,6 +545,70 @@
       }
     }
 
+    async function openHistoryModal(id) {
+      currentSelectedAssetId = id;
+      const asset = globalAssetsMap.get(String(id));
+      if (!asset) return;
+
+      document.getElementById('historyAssetTag').innerText = `${asset.asset_tag} - ${asset.model}`;
+      document.getElementById('detailModel').innerText = asset.model || 'N/A';
+      document.getElementById('detailCategory').innerText = asset.category || 'N/A';
+      document.getElementById('detailSerial').innerText = asset.serial_number || 'N/A';
+      document.getElementById('detailStatus').innerHTML = getStatusBadge(asset.status);
+      document.getElementById('detailUser').innerText = asset.assigned_user_name || 'Unassigned';
+      
+      document.getElementById('detailPurchaseDate').innerText = asset.purchase_date ? new Date(asset.purchase_date).toLocaleDateString() : 'N/A';
+      document.getElementById('detailPurchasePrice').innerText = asset.purchase_price ? `₦${parseFloat(asset.purchase_price).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'N/A';
+      document.getElementById('detailVendor').innerText = asset.vendor || 'N/A';
+
+      const timeline = document.getElementById('historyTimeline');
+      timeline.innerHTML = '<li class="text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Loading history...</li>';
+
+      assetHistoryModalInstance.show();
+
+      try {
+        const res = await authFetch(`/api/assets/${id}/history`);
+        if (!res || !res.ok) throw new Error();
+        const historyLogs = await res.json();
+
+        if (historyLogs.length === 0) {
+          timeline.innerHTML = '<li class="text-muted">No historical audit records found for this asset.</li>';
+          return;
+        }
+
+        timeline.innerHTML = historyLogs.map(item => `
+          <li class="timeline-item">
+            <div class="fw-bold text-dark">${escapeHTML(item.action || 'Asset Update')}</div>
+            <div class="small text-muted mb-1">${new Date(item.created_at).toLocaleString()} by <strong>${escapeHTML(item.performed_by_name || 'System')}</strong></div>
+            <p class="mb-0 text-secondary small">${escapeHTML(item.details || 'No details provided.')}</p>
+          </li>
+        `).join('');
+      } catch (err) {
+        timeline.innerHTML = '<li class="text-danger small">Could not load historical audit entries.</li>';
+      }
+    }
+
+    async function handleReturnToStock() {
+      if (!currentSelectedAssetId) return;
+      if (!confirm('Are you sure you want to retrieve this asset back to stock storage?')) return;
+
+      try {
+        const res = await authFetch(`/api/assets/${currentSelectedAssetId}`, {
+          method: 'PUT',
+          body: JSON.stringify({ status: 'In Stock', assigned_to: null })
+        });
+        if (res && res.ok) {
+          assetHistoryModalInstance.hide();
+          showAlert('Asset successfully returned to inventory stock.', 'success');
+          await loadAssets();
+        } else {
+          showAlert('Failed to update asset status.', 'danger');
+        }
+      } catch (err) {
+        showAlert('Network error encountered.', 'danger');
+      }
+    }
+
     async function handleFormSubmit(e) {
       e.preventDefault();
       const form = e.target;
@@ -434,6 +630,9 @@
         category: document.getElementById('category').value,
         model: document.getElementById('model').value.trim(),
         serial_number: document.getElementById('serialNumber').value.trim(),
+        purchase_price: document.getElementById('purchasePrice').value || null,
+        purchase_date: document.getElementById('purchaseDate').value || null,
+        vendor: document.getElementById('vendor').value.trim() || null,
         status: document.getElementById('status').value,
         assigned_to: document.getElementById('assignedTo').value || null
       };
@@ -473,6 +672,9 @@
       document.getElementById('category').value = asset.category || '';
       document.getElementById('model').value = asset.model || '';
       document.getElementById('serialNumber').value = asset.serial_number || '';
+      document.getElementById('purchasePrice').value = asset.purchase_price || '';
+      document.getElementById('purchaseDate').value = asset.purchase_date ? asset.purchase_date.split('T')[0] : '';
+      document.getElementById('vendor').value = asset.vendor || '';
       document.getElementById('status').value = asset.status || 'In Stock';
       document.getElementById('assignedTo').value = asset.assigned_to || '';
       assetModalInstance.show();

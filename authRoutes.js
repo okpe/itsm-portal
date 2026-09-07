@@ -1,8 +1,41 @@
 const express = require('express');
 const crypto = require('crypto');
-const bcrypt = require('bcryptjs'); // Standardized dependency
+const bcrypt = require('bcryptjs');
 const router = express.Router();
-const db = require('./database'); // Consolidated DB path
+const db = require('./database');
+const { requireAuth } = require('./auth-guard');
+
+/**
+ * GET /api/auth/me
+ * Endpoint required by protectPage() in auth-guard.js to verify active sessions.
+ */
+router.get('/me', requireAuth, async (req, res) => {
+  try {
+    const sessionUser = req.user || req.session?.user?.user || req.session?.user;
+    
+    // Fetch fresh details from DB to ensure roles/access flags aren't stale
+    const user = await db.findUserByEmail(sessionUser.email);
+    if (!user) {
+      return res.status(401).json({ error: 'User account no longer exists.' });
+    }
+
+    const safeUser = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      access_helpdesk: user.access_helpdesk,
+      access_assets: user.access_assets,
+      name: user.name || user.full_name || undefined,
+      subsidiary: user.subsidiary || null,
+      department: user.department || null
+    };
+
+    return res.status(200).json(safeUser);
+  } catch (error) {
+    console.error('Auth /me Error:', error);
+    return res.status(500).json({ error: 'Failed to retrieve current user context.' });
+  }
+});
 
 /**
  * POST /api/auth/login
@@ -26,20 +59,28 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
-    // Attach user payload to session for auth-guard.js check
-    req.session.user = {
+    // Attach full user payload to session for auth-guard.js checks
+    const sessionData = {
       id: user.id,
       email: user.email,
-      role: user.role
+      role: user.role,
+      access_helpdesk: user.access_helpdesk,
+      access_assets: user.access_assets
     };
 
-    return res.status(200).json({
-      message: 'Login successful.',
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role
+    req.session.user = sessionData;
+
+    // Explicitly save session before returning response
+    req.session.save((err) => {
+      if (err) {
+        console.error('Session save error:', err);
+        return res.status(500).json({ error: 'Failed to initialize user session.' });
       }
+
+      return res.status(200).json({
+        message: 'Login successful.',
+        user: sessionData
+      });
     });
   } catch (error) {
     console.error('Login Error:', error);
@@ -49,7 +90,7 @@ router.post('/login', async (req, res) => {
 
 /**
  * POST /api/auth/logout
- * Destroys session
+ * Destroys session and clears session cookie
  */
 router.post('/logout', (req, res) => {
   if (req.session) {
@@ -59,7 +100,6 @@ router.post('/logout', (req, res) => {
         return res.status(500).json({ error: 'Could not log out.' });
       }
       
-      // Explicitly clear the default express-session cookie
       res.clearCookie('connect.sid', { path: '/' });
       return res.status(200).json({ message: 'Logged out successfully.' });
     });

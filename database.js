@@ -6,7 +6,7 @@ const dbPath = path.join(__dirname, 'helpdesk.db');
 const db = new sqlite3.Database(dbPath);
 
 /* ==========================================================================
-   PROMISE-BASED HELPER WRAPPERS (Attached directly to db instance)
+   PROMISE-BASED HELPER WRAPPERS
    ========================================================================== */
 
 db.getAsync = function (sql, params = []) {
@@ -36,6 +36,15 @@ db.allAsync = function (sql, params = []) {
   });
 };
 
+db.closeAsync = function () {
+  return new Promise((resolve, reject) => {
+    db.close((err) => {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
+};
+
 // Enable foreign key support
 db.run('PRAGMA foreign_keys = ON');
 
@@ -45,7 +54,7 @@ db.run('PRAGMA foreign_keys = ON');
 
 function initSchema() {
   db.serialize(() => {
-    // 1. Users table supporting password reset fields, roles, and permissions (Resolver removed)
+    // 1. Users table
     db.run(`
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -54,6 +63,8 @@ function initSchema() {
         password TEXT NOT NULL,
         role TEXT CHECK(role IN ('requester', 'manager', 'admin', 'super_admin')) DEFAULT 'requester',
         manager_id INTEGER,
+        subsidiary TEXT,
+        department TEXT,
         access_helpdesk INTEGER DEFAULT 1,
         access_assets INTEGER DEFAULT 1,
         reset_token_hash TEXT,
@@ -89,6 +100,8 @@ function initSchema() {
         requester_id INTEGER NOT NULL,
         manager_id INTEGER,
         assigned_to INTEGER,
+        subsidiary TEXT,
+        department TEXT,
         asset_id INTEGER,
         quantity INTEGER DEFAULT 1,
         cost REAL DEFAULT 0,
@@ -124,7 +137,7 @@ function initSchema() {
       )
     `);
 
-    // 5. Assets table (Updated with salvage_value, repair tracking & refresh tracking)
+    // 5. Assets table
     db.run(`
       CREATE TABLE IF NOT EXISTS assets (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -164,7 +177,14 @@ function initSchema() {
       )
     `);
 
-    // Dynamic Safe Column Migrations
+    // Performance Indexes
+    db.run(`CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_tickets_requester ON tickets(requester_id)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_tickets_assigned ON tickets(assigned_to)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_assets_status ON assets(status)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_assets_assigned ON assets(assigned_to)`);
+
+    // Safe Column Migrations
     const safeAddColumn = (table, column, typeDef) => {
       db.run(`ALTER TABLE ${table} ADD COLUMN ${column} ${typeDef}`, (err) => {
         if (err && !/duplicate column/i.test(err.message)) {
@@ -175,6 +195,18 @@ function initSchema() {
 
     safeAddColumn('users', 'access_helpdesk', 'INTEGER DEFAULT 1');
     safeAddColumn('users', 'access_assets', 'INTEGER DEFAULT 1');
+    safeAddColumn('users', 'subsidiary', 'TEXT');
+    safeAddColumn('users', 'department', 'TEXT');
+
+    safeAddColumn('tickets', 'subsidiary', 'TEXT');
+    safeAddColumn('tickets', 'department', 'TEXT');
+    safeAddColumn('tickets', 'asset_id', 'INTEGER REFERENCES assets(id)');
+    safeAddColumn('tickets', 'quantity', 'INTEGER DEFAULT 1');
+    safeAddColumn('tickets', 'cost', 'REAL DEFAULT 0');
+    safeAddColumn('tickets', 'po_number', 'TEXT');
+    safeAddColumn('tickets', 'vendor', 'TEXT');
+    safeAddColumn('tickets', 'location', 'TEXT');
+
     safeAddColumn('assets', 'cost', 'REAL DEFAULT 0');
     safeAddColumn('assets', 'salvage_value', 'REAL DEFAULT 0');
     safeAddColumn('assets', 'po_number', 'TEXT');
@@ -182,12 +214,6 @@ function initSchema() {
     safeAddColumn('assets', 'location', 'TEXT');
     safeAddColumn('assets', 'last_repair_date', 'DATE');
     safeAddColumn('assets', 'refreshed_at', 'DATETIME');
-    safeAddColumn('tickets', 'asset_id', 'INTEGER REFERENCES assets(id)');
-    safeAddColumn('tickets', 'quantity', 'INTEGER DEFAULT 1');
-    safeAddColumn('tickets', 'cost', 'REAL DEFAULT 0');
-    safeAddColumn('tickets', 'po_number', 'TEXT');
-    safeAddColumn('tickets', 'vendor', 'TEXT');
-    safeAddColumn('tickets', 'location', 'TEXT');
 
     migrateLegacyResolvers();
     seedSuperAdminUser();
@@ -220,7 +246,7 @@ function seedSuperAdminUser() {
 
     if (!row) {
       db.run(
-        `INSERT INTO users (name, email, password, role, access_helpdesk, access_assets) VALUES (?, ?, ?, 'super_admin', 1, 1)`,
+        `INSERT INTO users (name, email, password, role, access_helpdesk, access_assets, subsidiary, department) VALUES (?, ?, ?, 'super_admin', 1, 1, 'Arkland Group', 'IT')`,
         ['Super Admin', defaultEmail, hashedPassword],
         (insertErr) => {
           if (insertErr) {
@@ -274,7 +300,7 @@ db.updateUserPasswordAndClearToken = async function (userId, hashedPassword) {
 
 db.getUsers = async function () {
   const sql = `
-    SELECT u.id, u.name, u.email, u.role, u.manager_id, u.access_helpdesk, u.access_assets, u.created_at,
+    SELECT u.id, u.name, u.email, u.role, u.manager_id, u.subsidiary, u.department, u.access_helpdesk, u.access_assets, u.created_at,
            m.name AS manager_name
     FROM users u
     LEFT JOIN users m ON u.manager_id = m.id
@@ -285,7 +311,7 @@ db.getUsers = async function () {
 
 db.getUserById = async function (id) {
   const sql = `
-    SELECT u.id, u.name, u.email, u.role, u.manager_id, u.access_helpdesk, u.access_assets, u.created_at,
+    SELECT u.id, u.name, u.email, u.role, u.manager_id, u.subsidiary, u.department, u.access_helpdesk, u.access_assets, u.created_at,
            m.name AS manager_name
     FROM users u
     LEFT JOIN users m ON u.manager_id = m.id
@@ -422,7 +448,6 @@ db.addAssetRepairLog = async function ({
     asset_id, repair_start_date, issue_description, repair_cost ? parseFloat(repair_cost) : 0, repaired_by || null
   ]);
 
-  // Automatically update asset status and last repair date
   await db.runAsync(
     `UPDATE assets SET status = 'Under Repair', last_repair_date = ? WHERE id = ?`,
     [repair_start_date, asset_id]
@@ -451,7 +476,6 @@ db.completeAssetRepair = async function (log_id, { repair_end_date, repair_cost,
   `;
   const result = await db.runAsync(sql, [repair_end_date, repair_cost ? parseFloat(repair_cost) : null, status, log_id]);
 
-  // Return asset to 'In Stock' if repair is complete
   if (status === 'Completed') {
     await db.runAsync(`UPDATE assets SET status = 'In Stock' WHERE id = ?`, [log.asset_id]);
   }
