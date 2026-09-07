@@ -358,6 +358,10 @@ app.put('/api/admin/users/:id', requireAuth, requireAdminOrSuper, async (req, re
       return res.status(403).json({ error: 'Super Administrator accounts are protected and cannot be edited' });
     }
 
+<<<<<<< HEAD
+=======
+    // Guard: Standard Admins cannot elevate anyone to admin/super_admin or alter an Admin account
+>>>>>>> 8aeed2091482308e68a99fb53bf943c95c7c6f42
     if ((newRole === 'super_admin' || newRole === 'admin' || targetRole === 'admin') && sessionRole !== 'super_admin') {
       return res.status(403).json({ error: 'Only Super Admins can manage or assign Administrative roles' });
     }
